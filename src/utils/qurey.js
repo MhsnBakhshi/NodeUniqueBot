@@ -37,5 +37,6 @@ const getAllChatID = async () => {
 }
 module.exports = {
   insertUser,
-  getUserRole
+  getUserRole,
+  getAllChatID
 }

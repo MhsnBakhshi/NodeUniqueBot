@@ -1,9 +1,11 @@
 const { Telegraf, Markup } = require("telegraf");
-const { connectToDB } = require("./db");
-const { insertUser, getUserRole } = require("./utils/qurey");
+const { connectToDB, redis } = require("./db");
+const { insertUser, getUserRole, getAllChatID } = require("./utils/qurey");
 const { checkUserMembership, sendAdminKeyBoard } = require("./utils/actions");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
+
+let isSentForwardTextFlag = false;
 bot.use(async (ctx, next) => {
   await insertUser(ctx);
 
@@ -45,8 +47,46 @@ bot.action("panel_admin", async (ctx) => {
   sendAdminKeyBoard(ctx);
 });
 
-bot.hears("فوروارد همگانی 📨", (ctx) => {
-  // codes
+bot.hears("📬 | فوروارد همگانی", async (ctx) => {
+  ctx.sendChatAction("typing");
+  ctx.reply("پیام مورد نظرتو بفرست:", {
+    reply_markup: {
+      keyboard: [[{ text: "🔙 | بازگشت" }]],
+      resize_keyboard: true,
+      remove_keyboard: true,
+    },
+  });
+  isSentForwardTextFlag = true;
+});
+
+bot.hears("🔙 | بازگشت", async (ctx) => {
+  ctx.sendChatAction("typing");
+  sendAdminKeyBoard(ctx);
+});
+
+bot.on("message", async (ctx) => {
+  if (isSentForwardTextFlag) {
+    const users = await getAllChatID();
+
+    ctx.sendChatAction("typing");
+    ctx.reply("درحال فوروارد متن مورد نظر ....");
+
+    for (const user of users) {
+      const chatId = Number(user.chat_id);
+      try {
+        await bot.telegram.forwardMessage(
+          chatId,
+          ctx.message.chat.id,
+          ctx.message.message_id
+        );
+      } catch (error) {
+        ctx.sendChatAction("typing");
+        ctx.reply(`خطا در فوروارد پیام. ${error}`);
+      }
+    }
+    ctx.sendChatAction("typing");
+    ctx.reply("فوروارد با موفقیت به تمامی کاربران ارسال شد.");
+  }
 });
 
 bot.command("donit", (ctx) => {
@@ -62,7 +102,6 @@ bot.command("donit", (ctx) => {
 });
 
 connectToDB();
-console.log("Bot Running");
-bot.launch();
+bot.launch().then(console.log("Bot Running"));
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
