@@ -1,7 +1,11 @@
 const { Telegraf, Markup } = require("telegraf");
 const { connectToDB, redis } = require("./db");
 const { insertUser, getUserRole, getAllChatID } = require("./utils/qurey");
-const { checkUserMembership, sendAdminKeyBoard } = require("./utils/actions");
+const {
+  checkUserMembership,
+  sendAdminKeyBoard,
+  sendMainKeyboard,
+} = require("./utils/actions");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -41,6 +45,18 @@ bot.start(async (ctx) => {
   }
 });
 
+bot.command("donit", (ctx) => {
+  ctx.reply(`${ctx.chat.first_name} عزیز، 
+برای حمایت از ربات میتوانید یکی از راه ها را انتخاب نمایید. حمایت شما باعث دلگرمی برنامه نویس ربات است.🙏❤️
+
+1) بوست کردن کانال تلگرام (کاربران پریموم)
+- https://t.me/boost/NodeUnique
+2) دونیت قهوه برای برنامه نویس 
+- https://www.coffeete.ir/MhsnBakhshi
+3) دادن 🌟 به ریپو گیت هاب ربات
+- https://github.com/MhsnBakhshi/NodeUniqueBot`);
+});
+
 bot.action("panel_admin", async (ctx) => {
   ctx.sendChatAction("typing");
   ctx.deleteMessage();
@@ -48,20 +64,50 @@ bot.action("panel_admin", async (ctx) => {
 });
 
 bot.hears("📬 | فوروارد همگانی", async (ctx) => {
-  ctx.sendChatAction("typing");
-  ctx.reply("پیام مورد نظرتو بفرست:", {
-    reply_markup: {
-      keyboard: [[{ text: "🔙 | بازگشت" }]],
-      resize_keyboard: true,
-      remove_keyboard: true,
-    },
-  });
-  isSentForwardTextFlag = true;
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("پیام مورد نظرتو بفرست:", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    isSentForwardTextFlag = true;
+  }
+});
+
+bot.hears("لیست کاربران | 👤", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+
+    const users = await getAllChatID();
+    let chatIDList = "لیست کاربران به شرح زیر می‌باشد:\n\n";
+
+    users.forEach((user, index) => {
+      chatIDList +=
+        `${index + 1}` + " - " + "`" + `${user.chat_id}` + "`" + "\n";
+    });
+
+    ctx.reply(chatIDList, {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+      parse_mode: "Markdown",
+    });
+  }
 });
 
 bot.hears("🔙 | بازگشت", async (ctx) => {
   ctx.sendChatAction("typing");
-  sendAdminKeyBoard(ctx);
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    sendAdminKeyBoard(ctx);
+  }
 });
 
 bot.on("message", async (ctx) => {
@@ -86,19 +132,8 @@ bot.on("message", async (ctx) => {
     }
     ctx.sendChatAction("typing");
     ctx.reply("فوروارد با موفقیت به تمامی کاربران ارسال شد.");
+    isSentForwardTextFlag = false;
   }
-});
-
-bot.command("donit", (ctx) => {
-  ctx.reply(`${ctx.chat.first_name} عزیز، 
-برای حمایت از ربات میتوانید یکی از راه ها را انتخاب نمایید. حمایت شما باعث دلگرمی برنامه نویس ربات است.🙏❤️
-
-1) بوست کردن کانال تلگرام (کاربران پریموم)
-- https://t.me/boost/NodeUnique
-2) دونیت قهوه برای برنامه نویس 
-- https://www.coffeete.ir/MhsnBakhshi
-3) دادن 🌟 به ریپو گیت هاب ربات
-- https://github.com/MhsnBakhshi/NodeUniqueBot`);
 });
 
 connectToDB();
