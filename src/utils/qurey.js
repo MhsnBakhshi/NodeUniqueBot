@@ -3,7 +3,7 @@ const { prisma, redis } = require( "../db");
 
 const insertUser = async (ctx) => {
   const chatID  = ctx.chat.id;
-
+  const name  = ctx.chat.first_name
   const isUserAlreadyExist = await prisma.user.findFirst({where: {chat_id: chatID}})
 
   const userCount = await prisma.user.count()
@@ -11,7 +11,7 @@ const insertUser = async (ctx) => {
   if (!isUserAlreadyExist) {
     await prisma.user.create({data: {
       chat_id: chatID,
-      name: ctx.chat.first_name,
+      name,
       role: userCount === 0 ? "ADMIN" : "USER"
     }})
   }
@@ -28,6 +28,13 @@ const getUserRole = async (ctx) =>{
 
 }
 
+const getAllChatID = async () => {
+  const chatIDs = await prisma.user.findMany({select: {
+    chat_id: true
+  }})
+
+  return chatIDs
+}
 module.exports = {
   insertUser,
   getUserRole
