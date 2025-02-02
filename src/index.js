@@ -173,7 +173,35 @@ bot.hears("🆔 | آیدی یاب", async (ctx) => {
     await redis.setex("findUserStep", 120, "WAITING_FOR_CHATID");
   }
 });
+bot.hears("👤 | تنظیمات ادمین ها", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | گزینه مورد نظر را انتخاب کنید", {
+      reply_markup: {
+        keyboard: [
+          [{ text: "👤 لیست ادمین ها" }],
+          [{ text: "➖حذف ادمین" }, { text: "➕افزودن ادمین" }],
+          [{ text: "🔙 | بازگشت" }],
+        ],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+  }
+});
 
+bot.hears("👤 لیست ادمین ها", async (ctx) => {
+  // codes
+});
+
+bot.hears("➕افزودن ادمین", async (ctx) => {
+  // codes
+});
+
+bot.hears("➖حذف ادمین", async (ctx) => {
+  // codes
+});
 bot.hears("🔙 | بازگشت", async (ctx) => {
   ctx.sendChatAction("typing");
   const userRole = await getUserRole(ctx);
