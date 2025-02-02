@@ -5,6 +5,7 @@ const {
   getUserRole,
   getAllChatID,
   findByChatID,
+  findAndRemove,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -129,6 +130,21 @@ bot.hears("📩 | پیام به کاربر", async (ctx) => {
     await redis.setex("sendMessageStep", 120, "WAITING_FOR_CHATID");
   }
 });
+
+bot.hears("🚨 | حذف کاربر", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("آیدی عددی کاربر رو بفرست:", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    await redis.setex("removeUserStep", 120, "WAITING_FOR_CHATID");
+  }
+});
 bot.hears("🆔 | آیدی یاب", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
@@ -156,6 +172,7 @@ bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
   const findUserStep = await redis.get("findUserStep");
+  const removeUserStep = await redis.get("removeUserStep");
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -248,6 +265,17 @@ bot.on("message", async (ctx) => {
     } catch (error) {
       ctx.reply("کاربر یافت نشد ❌");
     }
+  }
+
+  if (removeUserStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatIdInput = parseInt(ctx.message.text);
+
+    if (isNaN(chatIdInput)) return ctx.reply("ایدی فرد درست نمیباشد!");
+
+    await findAndRemove(chatIdInput, ctx);
   }
 });
 

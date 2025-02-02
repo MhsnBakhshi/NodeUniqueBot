@@ -52,9 +52,39 @@ const findByChatID = async (chatID) => {
 
   return user;
 };
+
+const findAndRemove = async (chatID, ctx) => {
+  const user = await findByChatID(chatID);
+
+  if (user) {
+    await prisma.user.delete({
+      where: {
+        chat_id: chatID,
+      },
+    });
+    ctx.reply("کاربر با موفقیت حذف شد ✔", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    return;
+  } else {
+    ctx.reply("کاربری با ایدی مورد نظر یافت نشد!", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    return;
+  }
+};
 module.exports = {
   insertUser,
   getUserRole,
   getAllChatID,
   findByChatID,
+  findAndRemove,
 };
