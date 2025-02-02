@@ -91,6 +91,20 @@ bot.hears("📬 | فوروارد همگانی", async (ctx) => {
     isSentForwardTextFlag = true;
   }
 });
+bot.hears("✉ | پیام همگانی", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("پیام مورد نظرتو بفرست:", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    await redis.setex("sendMessageUsersStep", 120, "WAITING_FOR_MESSAGE");
+  }
+});
 
 bot.hears("👤 | لیست کاربران", async (ctx) => {
   const userRole = await getUserRole(ctx);
@@ -173,6 +187,7 @@ bot.on("message", async (ctx) => {
   const sendMessageStep = await redis.get("sendMessageStep");
   const findUserStep = await redis.get("findUserStep");
   const removeUserStep = await redis.get("removeUserStep");
+  const sendMessageUsersStep = await redis.get("sendMessageUsersStep");
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -276,6 +291,30 @@ bot.on("message", async (ctx) => {
     if (isNaN(chatIdInput)) return ctx.reply("ایدی فرد درست نمیباشد!");
 
     await findAndRemove(chatIdInput, ctx);
+  }
+
+  if (sendMessageUsersStep === "WAITING_FOR_MESSAGE") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const text = ctx.message.text;
+    const users = await getAllChatID();
+
+    ctx.sendChatAction("typing");
+    ctx.reply("درحال ارسال پیام مورد نظر ....");
+
+    for (const user of users) {
+      const chatId = Number(user.chat_id);
+      try {
+        await bot.telegram.sendMessage(chatId, text);
+      } catch (error) {
+        ctx.sendChatAction("typing");
+        ctx.reply(`خطا در ارسال پیام. ${error}`);
+      }
+    }
+    ctx.sendChatAction("typing");
+    ctx.reply("پیام با موفقیت به تمامی کاربران ارسال شد.");
+    await redis.del("sendMessageUsersStep");
   }
 });
 
