@@ -36,7 +36,7 @@ const sendAdminKeyBoard = (ctx) => {
           { text: "🆔 | آیدی یاب" },
           { text: "🚨 | حذف کاربر" },
         ],
-        [{ text: "👤 | تنظیمات ادمین ها " }],
+        [{ text: "👤 | تنظیمات ادمین ها" }],
       ],
       resize_keyboard: true,
       one_time_keyboard: true,
