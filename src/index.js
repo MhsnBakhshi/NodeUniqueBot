@@ -129,6 +129,21 @@ bot.hears("📩 | پیام به کاربر", async (ctx) => {
     await redis.setex("sendMessageStep", 120, "WAITING_FOR_CHATID");
   }
 });
+bot.hears("🆔 | آیدی یاب", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("آیدی عددی کاربر رو بفرست:", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    await redis.setex("findUserStep", 120, "WAITING_FOR_CHATID");
+  }
+});
+
 bot.hears("🔙 | بازگشت", async (ctx) => {
   ctx.sendChatAction("typing");
   const userRole = await getUserRole(ctx);
@@ -140,8 +155,7 @@ bot.hears("🔙 | بازگشت", async (ctx) => {
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
-
-  if (!sendMessageStep) return;
+  const findUserStep = await redis.get("findUserStep");
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -210,6 +224,29 @@ bot.on("message", async (ctx) => {
     } catch (error) {
       ctx.reply("خطا در ارسال پیام");
       console.log("error on send message", error);
+    }
+  }
+
+  if (findUserStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatId = ctx.message.text;
+    try {
+      const { bio, username, first_name } = await ctx.telegram.getChat(chatId);
+
+      const response = `
+    👤نام کاربر: ${first_name}\n🆔 ایدی کاربر: ${chatId}\n🔖 یوزرنیم کاربر: @${
+        username ? username : "یوزرنیم ندارد"
+      }\n 📚 بیو کاربر: ${
+        bio ? bio : "بیو ندارد"
+      }\n\n <a href= "tg://openmessage?user_id=${chatId}">پیوی کاربر </a>
+    `;
+
+      ctx.reply(response, { parse_mode: "HTML" });
+      await redis.del("findUserStep");
+    } catch (error) {
+      ctx.reply("کاربر یافت نشد ❌");
     }
   }
 });
