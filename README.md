@@ -40,21 +40,25 @@ BOT_TOKEN = 7852489665:AAHkF462lzErDeCfq-O1I3N72KTI3WOnawc
 
 ## Folder Stracture
 
-📂 NodeUniqueBot
-┣ 📂 prisma
-┃ ┣ 📂 migrations  
-┃ ┗ 📜 schema.prisma  
-┣ 📂 src
-┃ ┣ 📂 utils
-  ┃     ┗📜 actions.js  
-  ┃     ┗📜 qurey.js  
-  ┃ ┗ 📜 index.js  
-  ┃ ┗ 📜 db.js  
-  ┣ 📜 .env  
-  ┣ 📜 package.json  
-  ┣ 📜 README.md  
-  ┗ 📜 .gitignore
-
+```
+.
+├── src
+│   ├── utils
+|   |   ├── actions.js.                               
+│   |   └── qurey.js              
+│   ├── db.js                                
+│   └── index.js                              
+├── prisma
+│   ├── migrations
+│   └── schema.prisma
+├── git
+├── .env                   
+├── .gitignore
+├── node_modules
+├── package-lock.json
+├── package.json
+├── README.md
+```
 
 ## How Contribute In Project
 
