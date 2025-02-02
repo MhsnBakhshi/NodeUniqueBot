@@ -43,8 +43,18 @@ const getAllChatID = async () => {
 
   return chatIDs;
 };
+const findByChatID = async (chatID) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      chat_id: chatID,
+    },
+  });
+
+  return user;
+};
 module.exports = {
   insertUser,
   getUserRole,
   getAllChatID,
+  findByChatID,
 };
