@@ -1,4 +1,5 @@
 const rqeuiredChannels = ["@NodeUnique"];
+const moment = require("moment-timezone");
 
 const checkUserMembership = async function (ctx) {
   try {
@@ -30,7 +31,12 @@ const sendAdminKeyBoard = (ctx) => {
           { text: "✉ | پیام همگانی" },
           { text: "📩 | پیام به کاربر" },
         ],
-        [{ text: "لیست کاربران | 👤" }, { text: "🆔 | آیدی یاب" }],
+        [
+          { text: "👤 | لیست کاربران" },
+          { text: "🆔 | آیدی یاب" },
+          { text: "🚨 | حذف کاربر" },
+        ],
+        [{ text: "👤 | تنظیمات ادمین ها " }],
       ],
       resize_keyboard: true,
       one_time_keyboard: true,
@@ -41,8 +47,34 @@ const sendMainKeyboard = (ctx) => {
   // codes
 };
 
+const calculateTimestampToIranTime = (timestamp) => {
+  const daysOfWeekInPersian = [
+    "شنبه", // Sunday
+    "یکشنبه", // Monday
+    "دوشنبه", // Tuesday
+    "سه‌شنبه", // Wednesday
+    "چهارشنبه", // Thursday
+    "پنج‌شنبه", // Friday
+    "جمعه", // Saturday
+  ];
+  const iranTime = moment.utc(timestamp).tz("Asia/Tehran");
+
+  let dayOfWeekIndex = iranTime.day();
+
+  dayOfWeekIndex = (dayOfWeekIndex + 1) % 7;
+
+  const dayOfWeek = daysOfWeekInPersian[dayOfWeekIndex];
+  const formattedDate = iranTime.format("YYYY/MM/DD");
+  const formattedTime = iranTime.format("HH:mm:ss");
+
+  const message = ` امروز ${dayOfWeek} مورخ ${formattedDate} ساعت ${formattedTime}`;
+
+  return message;
+};
+
 module.exports = {
   checkUserMembership,
   sendAdminKeyBoard,
   sendMainKeyboard,
+  calculateTimestampToIranTime,
 };
