@@ -1,15 +1,20 @@
 const { Telegraf, Markup } = require("telegraf");
 const { connectToDB, redis } = require("./db");
-const { insertUser, getUserRole, getAllChatID } = require("./utils/qurey");
+const {
+  insertUser,
+  getUserRole,
+  getAllChatID,
+  findByChatID,
+} = require("./utils/qurey");
 const {
   checkUserMembership,
   sendAdminKeyBoard,
   sendMainKeyboard,
+  calculateTimestampToIranTime,
 } = require("./utils/actions");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-let isSentForwardTextFlag = false;
 bot.use(async (ctx, next) => {
   await insertUser(ctx);
 
@@ -28,6 +33,7 @@ bot.use(async (ctx, next) => {
 });
 
 bot.start(async (ctx) => {
+  const time = calculateTimestampToIranTime(Date.now());
   const { role } = await getUserRole(ctx);
   if (role === "ADMIN") {
     ctx.sendChatAction("typing");
@@ -35,12 +41,18 @@ bot.start(async (ctx) => {
       `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
       Markup.inlineKeyboard([
         [Markup.button.callback("ورود به پنل مدیریت | 🔐", "panel_admin")],
+        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
+        [Markup.button.callback(time, "none")],
       ])
     );
   } else {
     ctx.sendChatAction("typing");
     ctx.reply(
-      `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`
+      `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
+      Markup.inlineKeyboard([
+        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
+        [Markup.button.callback(time, "show_time")],
+      ])
     );
   }
 });
@@ -63,6 +75,7 @@ bot.action("panel_admin", async (ctx) => {
   sendAdminKeyBoard(ctx);
 });
 
+let isSentForwardTextFlag = false;
 bot.hears("📬 | فوروارد همگانی", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
@@ -78,7 +91,7 @@ bot.hears("📬 | فوروارد همگانی", async (ctx) => {
   }
 });
 
-bot.hears("لیست کاربران | 👤", async (ctx) => {
+bot.hears("👤 | لیست کاربران", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
@@ -102,6 +115,20 @@ bot.hears("لیست کاربران | 👤", async (ctx) => {
   }
 });
 
+bot.hears("📩 | پیام به کاربر", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("آیدی عددی کاربر رو بفرست:", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    await redis.setex("sendMessageStep", 120, "WAITING_FOR_CHATID");
+  }
+});
 bot.hears("🔙 | بازگشت", async (ctx) => {
   ctx.sendChatAction("typing");
   const userRole = await getUserRole(ctx);
@@ -111,7 +138,12 @@ bot.hears("🔙 | بازگشت", async (ctx) => {
 });
 
 bot.on("message", async (ctx) => {
-  if (isSentForwardTextFlag) {
+  const userRole = await getUserRole(ctx);
+  const sendMessageStep = await redis.get("sendMessageStep");
+
+  if (!sendMessageStep) return;
+
+  if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
 
     ctx.sendChatAction("typing");
@@ -133,6 +165,52 @@ bot.on("message", async (ctx) => {
     ctx.sendChatAction("typing");
     ctx.reply("فوروارد با موفقیت به تمامی کاربران ارسال شد.");
     isSentForwardTextFlag = false;
+  }
+  if (sendMessageStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatIdInput = ctx.message.text;
+    const isValidChatId = parseInt(chatIdInput);
+
+    if (isNaN(isValidChatId)) return ctx.reply("ایدی فرد درست نمیباشد!");
+
+    const user = await findByChatID(isValidChatId);
+    if (!user) {
+      ctx.reply("کاربری با ایدی مورد نظر یافت نشد!", {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      });
+      return;
+    }
+    await redis.setex("sentChatId", 120, isValidChatId);
+    await redis.setex("sendMessageStep", 120, "WAITING_FOR_MESSAGE");
+
+    ctx.sendChatAction("typing");
+    ctx.reply("حالا متن مورد نظرتو بفرست:");
+  }
+
+  if (sendMessageStep === "WAITING_FOR_MESSAGE") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const text = ctx.message.text;
+
+    try {
+      const sentChatId = await redis.get("sentChatId");
+      ctx.telegram.sendMessage(sentChatId, text);
+      ctx.sendChatAction("typing");
+      ctx.reply("با موفقیت ارسال شد. ✔");
+
+      await redis.del("sendMessageStep");
+      await redis.del("sentChatId");
+    } catch (error) {
+      ctx.reply("خطا در ارسال پیام");
+      console.log("error on send message", error);
+    }
   }
 });
 
