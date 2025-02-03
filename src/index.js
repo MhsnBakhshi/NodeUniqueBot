@@ -7,6 +7,7 @@ const {
   findByChatID,
   findAndRemove,
   findAndChangeRole,
+  getAllAdmins,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -35,28 +36,9 @@ bot.use(async (ctx, next) => {
 });
 
 bot.start(async (ctx) => {
-  const time = calculateTimestampToIranTime(Date.now());
+  const {date, time} = calculateTimestampToIranTime(Date.now());
   const { role } = await getUserRole(ctx);
-  if (role === "ADMIN") {
-    ctx.sendChatAction("typing");
-    ctx.reply(
-      `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
-      Markup.inlineKeyboard([
-        [Markup.button.callback("ورود به پنل مدیریت | 🔐", "panel_admin")],
-        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
-        [Markup.button.callback(time, "none")],
-      ])
-    );
-  } else {
-    ctx.sendChatAction("typing");
-    ctx.reply(
-      `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
-      Markup.inlineKeyboard([
-        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
-        [Markup.button.callback(time, "show_time")],
-      ])
-    );
-  }
+  sendMainKeyboard(ctx, role, date, time)
 });
 
 bot.command("donit", (ctx) => {
@@ -196,7 +178,27 @@ bot.hears("👤 | تنظیمات ادمین ها", async (ctx) => {
 });
 
 bot.hears("👤 لیست ادمین ها", async (ctx) => {
-  // codes
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+
+    const admins = await getAllAdmins();
+    let chatIDList = "لیست ادمین ها به شرح زیر می‌باشد:\n\n";
+
+    admins.forEach((admin, index) => {
+      chatIDList +=
+        `${index + 1}` + " - " + "`" + `${admin.chat_id}` + "`" + "\n";
+    });
+
+    ctx.reply(chatIDList, {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+      parse_mode: "Markdown",
+    });
+  }
 });
 
 bot.hears("➕افزودن ادمین", async (ctx) => {
@@ -242,6 +244,12 @@ bot.hears("🔙 | بازگشت", async (ctx) => {
   if (userRole.role === "ADMIN") {
     sendAdminKeyBoard(ctx);
   }
+});
+bot.hears("🔙 | بازگشت به منو", async (ctx) => {
+  ctx.sendChatAction("typing");
+  const {date, time} = calculateTimestampToIranTime(Date.now());
+  const { role } = await getUserRole(ctx);
+  sendMainKeyboard(ctx, role, date, time)
 });
 
 bot.on("message", async (ctx) => {

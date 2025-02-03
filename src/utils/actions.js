@@ -1,5 +1,6 @@
 const rqeuiredChannels = ["@NodeUnique"];
 const moment = require("moment-timezone");
+const { Markup } = require("telegraf");
 
 const checkUserMembership = async function (ctx) {
   try {
@@ -44,8 +45,42 @@ const sendAdminKeyBoard = (ctx) => {
     },
   });
 };
-const sendMainKeyboard = (ctx) => {
-  // codes
+const sendMainKeyboard = (ctx, role, date, time) => {
+  if (role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
+      Markup.inlineKeyboard([
+        [Markup.button.callback("ورود به پنل مدیریت | 🔐", "panel_admin")],
+        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
+        [
+          Markup.button.callback(date, "none"),
+          Markup.button.callback("📆 تاریخ", "none"),
+        ],
+        [
+          Markup.button.callback(time, "none"),
+          Markup.button.callback("⏰ زمان", "none"),
+        ],
+      ])
+    );
+  } else {
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
+      Markup.inlineKeyboard([
+        [Markup.button.callback("ورود به پنل کاربری | 🔰", "panel_عسثق")],
+        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
+        [
+          Markup.button.callback(date, "none"),
+          Markup.button.callback("📆 تاریخ", "none"),
+        ],
+        [
+          Markup.button.callback(time, "none"),
+          Markup.button.callback("⏰ زمان", "none"),
+        ],
+      ])
+    );
+  }
 };
 
 const calculateTimestampToIranTime = (timestamp) => {
@@ -68,9 +103,10 @@ const calculateTimestampToIranTime = (timestamp) => {
   const formattedDate = iranTime.format("YYYY/MM/DD");
   const formattedTime = iranTime.format("HH:mm:ss");
 
-  const message = ` امروز ${dayOfWeek} مورخ ${formattedDate} ساعت ${formattedTime}`;
+  const date = `${dayOfWeek} ${formattedDate}`;
+  const time = `ساعت ${formattedTime}`;
 
-  return message;
+  return { date, time };
 };
 
 module.exports = {

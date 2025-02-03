@@ -113,6 +113,18 @@ const findAndChangeRole = async (chatID, ctx, role, message) => {
   }
 };
 
+const getAllAdmins = async () => {
+  const admins = await prisma.user.findMany({
+    where: {
+      role: "ADMIN",
+    },
+    select: {
+      chat_id: true,
+    },
+  });
+
+  return admins;
+};
 module.exports = {
   insertUser,
   getUserRole,
@@ -120,4 +132,5 @@ module.exports = {
   findByChatID,
   findAndRemove,
   findAndChangeRole,
+  getAllAdmins
 };
