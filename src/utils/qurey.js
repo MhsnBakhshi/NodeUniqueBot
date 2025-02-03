@@ -81,7 +81,7 @@ const findAndRemove = async (chatID, ctx) => {
     return;
   }
 };
-const findAndChangeRole = async (chatID, ctx) => {
+const findAndChangeRole = async (chatID, ctx, role, message) => {
   const user = await findByChatID(chatID);
 
   if (user) {
@@ -90,10 +90,10 @@ const findAndChangeRole = async (chatID, ctx) => {
         chat_id: chatID,
       },
       data: {
-        role: "ADMIN",
+        role: role,
       },
     });
-    ctx.reply("کاربر با موفقیت ادمین شد ✔", {
+    ctx.reply(message, {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
