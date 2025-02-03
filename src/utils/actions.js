@@ -26,6 +26,7 @@ const sendAdminKeyBoard = (ctx) => {
     reply_markup: {
       keyboard: [
         [{ text: "🔙 | بازگشت به منو" }],
+        [{ text: "🔰 | بلاک و آنبلاک‌ کاربر | 🔰" }],
         [
           { text: "📬 | فوروارد همگانی" },
           { text: "✉ | پیام همگانی" },

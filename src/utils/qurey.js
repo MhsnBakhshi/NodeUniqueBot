@@ -81,10 +81,43 @@ const findAndRemove = async (chatID, ctx) => {
     return;
   }
 };
+const findAndChangeRole = async (chatID, ctx) => {
+  const user = await findByChatID(chatID);
+
+  if (user) {
+    await prisma.user.update({
+      where: {
+        chat_id: chatID,
+      },
+      data: {
+        role: "ADMIN",
+      },
+    });
+    ctx.reply("کاربر با موفقیت ادمین شد ✔", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    return;
+  } else {
+    ctx.reply("کاربری با ایدی مورد نظر یافت نشد!", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    return;
+  }
+};
+
 module.exports = {
   insertUser,
   getUserRole,
   getAllChatID,
   findByChatID,
   findAndRemove,
+  findAndChangeRole,
 };
