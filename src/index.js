@@ -11,6 +11,7 @@ const {
   isUserBanned,
   banUser,
   getAllBans,
+  unBanUser,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -302,7 +303,19 @@ bot.hears("⭕️| لیست مسدودی ها", async (ctx) => {
 });
 
 bot.hears("♻️| آزاد سازی", async (ctx) => {
-  // codes
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | آیدی عددی فرد جهت رفع مسدودیت را ارسال نمایید.", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+
+    await redis.setex("unBlockUserStep", 120, "WAITING_FOR_CHATID");
+  }
 });
 
 bot.hears("🚫| مسدود کردن", async (ctx) => {
@@ -347,6 +360,7 @@ bot.on("message", async (ctx) => {
   const addAdminStep = await redis.get("addAdminStep");
   const removeAdminStep = await redis.get("removeAdminStep");
   const blockUserStep = await redis.get("blockUserStep");
+  const unBlockUserStep = await redis.get("unBlockUserStep");
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -515,6 +529,18 @@ bot.on("message", async (ctx) => {
 
     await banUser(ctx, chatID);
     await redis.del("blockUserStep");
+  }
+
+  if (unBlockUserStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatID = parseInt(ctx.message.text);
+
+    if (isNaN(chatID)) return ctx.reply("ایدی فرد درست نمیباشد!");
+
+    await unBanUser(ctx, chatID);
+    await redis.del("unBlockUserStep");
   }
 });
 

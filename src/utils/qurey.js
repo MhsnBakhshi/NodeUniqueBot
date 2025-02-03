@@ -156,6 +156,31 @@ const banUser = async (ctx, chatID) => {
   return;
 };
 
+const unBanUser = async (ctx, chatID) => {
+  const isUserban = await isUserBanned(chatID);
+  if (isUserban) {
+    const banRecord = await prisma.ban.findFirst({
+      where: { chat_id: chatID },
+    });
+
+    await prisma.ban.delete({
+      where: {
+        id: banRecord.id,
+      },
+    });
+    ctx.reply("کاربر با موفقیت رفع مسدود شد. ✔", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    return;
+  }
+
+  return ctx.reply("🚫 کاربر مسدود نمیباشد 🚫");
+};
+
 const getAllBans = async () => {
   const bans = prisma.ban.findMany({
     select: {
@@ -175,4 +200,5 @@ module.exports = {
   isUserBanned,
   banUser,
   getAllBans,
+  unBanUser,
 };
