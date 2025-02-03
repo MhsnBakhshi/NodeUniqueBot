@@ -6,6 +6,12 @@ const {
   getAllChatID,
   findByChatID,
   findAndRemove,
+  findAndChangeRole,
+  getAllAdmins,
+  isUserBanned,
+  banUser,
+  getAllBans,
+  unBanUser,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -33,29 +39,27 @@ bot.use(async (ctx, next) => {
   }
 });
 
-bot.start(async (ctx) => {
-  const time = calculateTimestampToIranTime(Date.now());
-  const { role } = await getUserRole(ctx);
-  if (role === "ADMIN") {
-    ctx.sendChatAction("typing");
-    ctx.reply(
-      `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
-      Markup.inlineKeyboard([
-        [Markup.button.callback("ورود به پنل مدیریت | 🔐", "panel_admin")],
-        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
-        [Markup.button.callback(time, "none")],
-      ])
-    );
-  } else {
-    ctx.sendChatAction("typing");
-    ctx.reply(
-      `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
-      Markup.inlineKeyboard([
-        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
-        [Markup.button.callback(time, "show_time")],
-      ])
-    );
+bot.use(async (ctx, next) => {
+  const userId = ctx.message?.chat?.id || ctx.callbackQuery?.from?.id;
+
+  const checkIsUserBan = await isUserBanned(parseInt(userId));
+
+  if (!checkIsUserBan) {
+    return next();
   }
+
+  ctx.reply(
+    "🤷‍♂️ | متأسفانه شما از طرف ادمین ربات مسدود شدید، اگه فکر میکنین اشتباهی رخ داده به ادمین ربات مراجعه کنید.",
+    Markup.inlineKeyboard([
+      [Markup.button.url("ارتباط با ادمین", "https://t.me/iDvMH")],
+    ])
+  );
+});
+
+bot.start(async (ctx) => {
+  const { date, time } = calculateTimestampToIranTime(Date.now());
+  const { role } = await getUserRole(ctx);
+  sendMainKeyboard(ctx, role, date, time);
 });
 
 bot.command("donit", (ctx) => {
@@ -81,7 +85,7 @@ bot.hears("📬 | فوروارد همگانی", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("پیام مورد نظرتو بفرست:", {
+    ctx.reply("👈🏻 | لطفا پیام موردنظرتون فوروارد نمایید.", {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
@@ -89,6 +93,20 @@ bot.hears("📬 | فوروارد همگانی", async (ctx) => {
       },
     });
     isSentForwardTextFlag = true;
+  }
+});
+bot.hears("✉ | پیام همگانی", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | لطفا پیام موردنظرتون ارسال نمایید.", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+    await redis.setex("sendMessageUsersStep", 120, "WAITING_FOR_MESSAGE");
   }
 });
 
@@ -120,7 +138,7 @@ bot.hears("📩 | پیام به کاربر", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("آیدی عددی کاربر رو بفرست:", {
+    ctx.reply("🔰 آیدی عددی فرد مورد نظر را جهت ارسال پیام ارسال کنید.", {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
@@ -135,13 +153,16 @@ bot.hears("🚨 | حذف کاربر", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("آیدی عددی کاربر رو بفرست:", {
-      reply_markup: {
-        keyboard: [[{ text: "🔙 | بازگشت" }]],
-        resize_keyboard: true,
-        remove_keyboard: true,
-      },
-    });
+    ctx.reply(
+      "🔰 آیدی عددی فرد مورد نظر را جهت حذف شدن ارسال کنید.\n🚨 هشدار کاربر بصورت کامل از لیست کاربران حذف میشود.",
+      {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      }
+    );
     await redis.setex("removeUserStep", 120, "WAITING_FOR_CHATID");
   }
 });
@@ -149,7 +170,7 @@ bot.hears("🆔 | آیدی یاب", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("آیدی عددی کاربر رو بفرست:", {
+    ctx.reply("🔰 آیدی عددی فرد مورد نظر را ارسال کنید.", {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
@@ -157,6 +178,162 @@ bot.hears("🆔 | آیدی یاب", async (ctx) => {
       },
     });
     await redis.setex("findUserStep", 120, "WAITING_FOR_CHATID");
+  }
+});
+bot.hears("👤 | تنظیمات ادمین ها", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | گزینه مورد نظر را انتخاب کنید", {
+      reply_markup: {
+        keyboard: [
+          [{ text: "👤 لیست ادمین ها" }],
+          [{ text: "➖حذف ادمین" }, { text: "➕افزودن ادمین" }],
+          [{ text: "🔙 | بازگشت" }],
+        ],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+  }
+});
+
+bot.hears("👤 لیست ادمین ها", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+
+    const admins = await getAllAdmins();
+    let chatIDList = "لیست ادمین ها به شرح زیر می‌باشد:\n\n";
+
+    admins.forEach((admin, index) => {
+      chatIDList +=
+        `${index + 1}` + " - " + "`" + `${admin.chat_id}` + "`" + "\n";
+    });
+
+    ctx.reply(chatIDList, {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+      parse_mode: "Markdown",
+    });
+  }
+});
+
+bot.hears("➕افزودن ادمین", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      "🔰 آیدی عددی فرد مورد نظر را جهت ادمین شدن در ربات ارسال کنید.",
+      {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      }
+    );
+
+    await redis.setex("addAdminStep", 120, "WAITING_FOR_CHATID");
+  }
+});
+
+bot.hears("➖حذف ادمین", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      "🔰 آیدی عددی فرد مورد نظر را جهت حذف ادمین در ربات ارسال کنید.",
+      {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      }
+    );
+
+    await redis.setex("removeAdminStep", 120, "WAITING_FOR_CHATID");
+  }
+});
+
+bot.hears("🔰 | بلاک و آنبلاک‌ کاربر | 🔰", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | گزینه مورد نظر را انتخاب کنید", {
+      reply_markup: {
+        keyboard: [
+          [{ text: "⭕️| لیست مسدودی ها" }],
+          [{ text: "🚫| مسدود کردن" }, { text: "♻️| آزاد سازی" }],
+          [{ text: "🔙 | بازگشت" }],
+        ],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+  }
+});
+
+bot.hears("⭕️| لیست مسدودی ها", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+
+    const bans = await getAllBans();
+    let chatIDList = "💢 لیست مسدودی ها به شرح زیر میباشد:\n\n";
+
+    bans.forEach((ban, index) => {
+      chatIDList +=
+        `${index + 1}` + " - " + "`" + `${ban.chat_id}` + "`" + "\n";
+    });
+
+    ctx.reply(chatIDList, {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+      parse_mode: "Markdown",
+    });
+  }
+});
+
+bot.hears("♻️| آزاد سازی", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | آیدی عددی فرد جهت رفع مسدودیت را ارسال نمایید.", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+
+    await redis.setex("unBlockUserStep", 120, "WAITING_FOR_CHATID");
+  }
+});
+
+bot.hears("🚫| مسدود کردن", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      "👈🏻 | آیدی عددی فرد جهت مسدود کردن را ارسال نمایید.\n\n⚠️ نکته: کاربر از لیست کاربران حذف نمیشود فقط دسترسی استفاده از ربات گرفته میشود.",
+      {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      }
+    );
+
+    await redis.setex("blockUserStep", 120, "WAITING_FOR_CHATID");
   }
 });
 
@@ -167,12 +344,23 @@ bot.hears("🔙 | بازگشت", async (ctx) => {
     sendAdminKeyBoard(ctx);
   }
 });
+bot.hears("🔙 | بازگشت به منو", async (ctx) => {
+  ctx.sendChatAction("typing");
+  const { date, time } = calculateTimestampToIranTime(Date.now());
+  const { role } = await getUserRole(ctx);
+  sendMainKeyboard(ctx, role, date, time);
+});
 
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
   const findUserStep = await redis.get("findUserStep");
   const removeUserStep = await redis.get("removeUserStep");
+  const sendMessageUsersStep = await redis.get("sendMessageUsersStep");
+  const addAdminStep = await redis.get("addAdminStep");
+  const removeAdminStep = await redis.get("removeAdminStep");
+  const blockUserStep = await redis.get("blockUserStep");
+  const unBlockUserStep = await redis.get("unBlockUserStep");
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -194,7 +382,7 @@ bot.on("message", async (ctx) => {
       }
     }
     ctx.sendChatAction("typing");
-    ctx.reply("فوروارد با موفقیت به تمامی کاربران ارسال شد.");
+    ctx.reply("فوروارد با موفقیت به تمامی کاربران ارسال شد. ✔");
     isSentForwardTextFlag = false;
   }
   if (sendMessageStep === "WAITING_FOR_CHATID") {
@@ -208,7 +396,7 @@ bot.on("message", async (ctx) => {
 
     const user = await findByChatID(isValidChatId);
     if (!user) {
-      ctx.reply("کاربری با ایدی مورد نظر یافت نشد!", {
+      ctx.reply("🚫 کاربری با ایدی مورد نظر یافت نشد! 🚫", {
         reply_markup: {
           keyboard: [[{ text: "🔙 | بازگشت" }]],
           resize_keyboard: true,
@@ -276,6 +464,83 @@ bot.on("message", async (ctx) => {
     if (isNaN(chatIdInput)) return ctx.reply("ایدی فرد درست نمیباشد!");
 
     await findAndRemove(chatIdInput, ctx);
+  }
+
+  if (sendMessageUsersStep === "WAITING_FOR_MESSAGE") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const text = ctx.message.text;
+    const users = await getAllChatID();
+
+    ctx.sendChatAction("typing");
+    ctx.reply("درحال ارسال پیام مورد نظر ....");
+
+    for (const user of users) {
+      const chatId = Number(user.chat_id);
+      try {
+        await bot.telegram.sendMessage(chatId, text);
+      } catch (error) {
+        ctx.sendChatAction("typing");
+        ctx.reply(`خطا در ارسال پیام. ${error}`);
+      }
+    }
+    ctx.sendChatAction("typing");
+    ctx.reply("پیام با موفقیت به تمامی کاربران ارسال شد. ✔");
+    await redis.del("sendMessageUsersStep");
+  }
+
+  if (addAdminStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatID = parseInt(ctx.message.text);
+
+    if (isNaN(chatID)) return ctx.reply("ایدی فرد درست نمیباشد!");
+
+    await findAndChangeRole(chatID, ctx, "ADMIN", "کاربر با موفقیت ادمین شد ✔");
+    await redis.del("addAdminStep");
+  }
+
+  if (removeAdminStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatID = parseInt(ctx.message.text);
+
+    if (isNaN(chatID)) return ctx.reply("ایدی فرد درست نمیباشد!");
+
+    await findAndChangeRole(
+      chatID,
+      ctx,
+      "USER",
+      "کاربر با موفقیت از ادمین ها حذف شد ✔"
+    );
+    await redis.del("removeAdminStep");
+  }
+
+  if (blockUserStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatID = parseInt(ctx.message.text);
+
+    if (isNaN(chatID)) return ctx.reply("ایدی فرد درست نمیباشد!");
+
+    await banUser(ctx, chatID);
+    await redis.del("blockUserStep");
+  }
+
+  if (unBlockUserStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatID = parseInt(ctx.message.text);
+
+    if (isNaN(chatID)) return ctx.reply("ایدی فرد درست نمیباشد!");
+
+    await unBanUser(ctx, chatID);
+    await redis.del("unBlockUserStep");
   }
 });
 
