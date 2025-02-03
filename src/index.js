@@ -6,6 +6,7 @@ const {
   getAllChatID,
   findByChatID,
   findAndRemove,
+  findAndChangeRole,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -149,13 +150,16 @@ bot.hears("🚨 | حذف کاربر", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("آیدی عددی کاربر رو بفرست:", {
-      reply_markup: {
-        keyboard: [[{ text: "🔙 | بازگشت" }]],
-        resize_keyboard: true,
-        remove_keyboard: true,
-      },
-    });
+    ctx.reply(
+      "🔰 آیدی عددی فرد مورد نظر را جهت حذف شدن ارسال کنید.\n🚨 هشدار کاربر بصورت کامل از لیست کاربران حذف میشود.",
+      {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      }
+    );
     await redis.setex("removeUserStep", 120, "WAITING_FOR_CHATID");
   }
 });
@@ -196,7 +200,22 @@ bot.hears("👤 لیست ادمین ها", async (ctx) => {
 });
 
 bot.hears("➕افزودن ادمین", async (ctx) => {
-  // codes
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      "🔰 آیدی عددی فرد مورد نظر را جهت ادمین شدن در ربات ارسال کنید.",
+      {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      }
+    );
+
+    await redis.setex("addAdminStep", 120, "WAITING_FOR_CHATID");
+  }
 });
 
 bot.hears("➖حذف ادمین", async (ctx) => {
@@ -216,6 +235,7 @@ bot.on("message", async (ctx) => {
   const findUserStep = await redis.get("findUserStep");
   const removeUserStep = await redis.get("removeUserStep");
   const sendMessageUsersStep = await redis.get("sendMessageUsersStep");
+  const addAdminStep = await redis.get("addAdminStep");
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -343,6 +363,18 @@ bot.on("message", async (ctx) => {
     ctx.sendChatAction("typing");
     ctx.reply("پیام با موفقیت به تمامی کاربران ارسال شد.");
     await redis.del("sendMessageUsersStep");
+  }
+
+  if (addAdminStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatID = parseInt(ctx.message.text);
+
+    if (isNaN(chatID)) return ctx.reply("ایدی فرد درست نمیباشد!");
+
+    await findAndChangeRole(chatID, ctx);
+    await redis.del("addAdminStep");
   }
 });
 
