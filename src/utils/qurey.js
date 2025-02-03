@@ -155,6 +155,15 @@ const banUser = async (ctx, chatID) => {
   });
   return;
 };
+
+const getAllBans = async () => {
+  const bans = prisma.ban.findMany({
+    select: {
+      chat_id: true,
+    },
+  });
+  return bans;
+};
 module.exports = {
   insertUser,
   getUserRole,
@@ -165,4 +174,5 @@ module.exports = {
   getAllAdmins,
   isUserBanned,
   banUser,
+  getAllBans,
 };

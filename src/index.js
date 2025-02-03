@@ -10,6 +10,7 @@ const {
   getAllAdmins,
   isUserBanned,
   banUser,
+  getAllBans,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -277,7 +278,27 @@ bot.hears("🔰 | بلاک و آنبلاک‌ کاربر | 🔰", async (ctx) =>
 });
 
 bot.hears("⭕️| لیست مسدودی ها", async (ctx) => {
-  // codes
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+
+    const bans = await getAllBans();
+    let chatIDList = "💢 لیست مسدودی ها به شرح زیر میباشد:\n\n";
+
+    bans.forEach((ban, index) => {
+      chatIDList +=
+        `${index + 1}` + " - " + "`" + `${ban.chat_id}` + "`" + "\n";
+    });
+
+    ctx.reply(chatIDList, {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+      parse_mode: "Markdown",
+    });
+  }
 });
 
 bot.hears("♻️| آزاد سازی", async (ctx) => {
