@@ -125,6 +125,36 @@ const getAllAdmins = async () => {
 
   return admins;
 };
+
+const isUserBanned = async (chatID) => {
+  const isBanned = await prisma.ban.findFirst({
+    where: {
+      chat_id: chatID,
+    },
+  });
+
+  if (isBanned) {
+    return true;
+  } else {
+    return false;
+  }
+};
+
+const banUser = async (ctx, chatID) => {
+  await prisma.ban.create({
+    data: {
+      chat_id: chatID,
+    },
+  });
+  ctx.reply("کاربر با موفقیت مسدود شد. ✔", {
+    reply_markup: {
+      keyboard: [[{ text: "🔙 | بازگشت" }]],
+      resize_keyboard: true,
+      remove_keyboard: true,
+    },
+  });
+  return;
+};
 module.exports = {
   insertUser,
   getUserRole,
@@ -132,5 +162,7 @@ module.exports = {
   findByChatID,
   findAndRemove,
   findAndChangeRole,
-  getAllAdmins
+  getAllAdmins,
+  isUserBanned,
+  banUser,
 };
