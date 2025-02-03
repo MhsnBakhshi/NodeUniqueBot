@@ -36,9 +36,9 @@ bot.use(async (ctx, next) => {
 });
 
 bot.start(async (ctx) => {
-  const {date, time} = calculateTimestampToIranTime(Date.now());
+  const { date, time } = calculateTimestampToIranTime(Date.now());
   const { role } = await getUserRole(ctx);
-  sendMainKeyboard(ctx, role, date, time)
+  sendMainKeyboard(ctx, role, date, time);
 });
 
 bot.command("donit", (ctx) => {
@@ -238,6 +238,37 @@ bot.hears("➖حذف ادمین", async (ctx) => {
     await redis.setex("removeAdminStep", 120, "WAITING_FOR_CHATID");
   }
 });
+
+bot.hears("🔰 | بلاک و آنبلاک‌ کاربر | 🔰", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | گزینه مورد نظر را انتخاب کنید", {
+      reply_markup: {
+        keyboard: [
+          [{ text: "⭕️| لیست مسدودی ها" }],
+          [{ text: "🚫| مسدود کردن " }, { text: "♻️| آزاد سازی" }],
+          [{ text: "🔙 | بازگشت" }],
+        ],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+  }
+});
+
+bot.hears("⭕️| لیست مسدودی ها", async (ctx) => {
+  // codes
+});
+
+bot.hears("♻️| آزاد سازی", async (ctx) => {
+  // codes
+});
+
+bot.hears("🚫| مسدود کردن ", async (ctx) => {
+  // codes
+});
+
 bot.hears("🔙 | بازگشت", async (ctx) => {
   ctx.sendChatAction("typing");
   const userRole = await getUserRole(ctx);
@@ -247,9 +278,9 @@ bot.hears("🔙 | بازگشت", async (ctx) => {
 });
 bot.hears("🔙 | بازگشت به منو", async (ctx) => {
   ctx.sendChatAction("typing");
-  const {date, time} = calculateTimestampToIranTime(Date.now());
+  const { date, time } = calculateTimestampToIranTime(Date.now());
   const { role } = await getUserRole(ctx);
-  sendMainKeyboard(ctx, role, date, time)
+  sendMainKeyboard(ctx, role, date, time);
 });
 
 bot.on("message", async (ctx) => {
