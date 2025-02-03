@@ -219,7 +219,22 @@ bot.hears("➕افزودن ادمین", async (ctx) => {
 });
 
 bot.hears("➖حذف ادمین", async (ctx) => {
-  // codes
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      "🔰 آیدی عددی فرد مورد نظر را جهت حذف ادمین در ربات ارسال کنید.",
+      {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      }
+    );
+
+    await redis.setex("removeAdminStep", 120, "WAITING_FOR_CHATID");
+  }
 });
 bot.hears("🔙 | بازگشت", async (ctx) => {
   ctx.sendChatAction("typing");
@@ -236,6 +251,7 @@ bot.on("message", async (ctx) => {
   const removeUserStep = await redis.get("removeUserStep");
   const sendMessageUsersStep = await redis.get("sendMessageUsersStep");
   const addAdminStep = await redis.get("addAdminStep");
+  const removeAdminStep = await redis.get("removeAdminStep");
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -373,8 +389,24 @@ bot.on("message", async (ctx) => {
 
     if (isNaN(chatID)) return ctx.reply("ایدی فرد درست نمیباشد!");
 
-    await findAndChangeRole(chatID, ctx);
+    await findAndChangeRole(chatID, ctx, "ADMIN", "کاربر با موفقیت ادمین شد ✔");
     await redis.del("addAdminStep");
+  }
+  if (removeAdminStep === "WAITING_FOR_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const chatID = parseInt(ctx.message.text);
+
+    if (isNaN(chatID)) return ctx.reply("ایدی فرد درست نمیباشد!");
+
+    await findAndChangeRole(
+      chatID,
+      ctx,
+      "USER",
+      "کاربر با موفقیت از ادمین ها حذف شد ✔"
+    );
+    await redis.del("removeAdminStep");
   }
 });
 
