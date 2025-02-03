@@ -85,7 +85,7 @@ bot.hears("📬 | فوروارد همگانی", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("پیام مورد نظرتو بفرست:", {
+    ctx.reply("👈🏻 | لطفا پیام موردنظرتون فوروارد نمایید.", {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
@@ -99,7 +99,7 @@ bot.hears("✉ | پیام همگانی", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("پیام مورد نظرتو بفرست:", {
+    ctx.reply("👈🏻 | لطفا پیام موردنظرتون ارسال نمایید.", {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
@@ -138,7 +138,7 @@ bot.hears("📩 | پیام به کاربر", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("آیدی عددی کاربر رو بفرست:", {
+    ctx.reply("🔰 آیدی عددی فرد مورد نظر را جهت ارسال پیام ارسال کنید.", {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
@@ -170,7 +170,7 @@ bot.hears("🆔 | آیدی یاب", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("آیدی عددی کاربر رو بفرست:", {
+    ctx.reply("🔰 آیدی عددی فرد مورد نظر را ارسال کنید.", {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
@@ -382,7 +382,7 @@ bot.on("message", async (ctx) => {
       }
     }
     ctx.sendChatAction("typing");
-    ctx.reply("فوروارد با موفقیت به تمامی کاربران ارسال شد.");
+    ctx.reply("فوروارد با موفقیت به تمامی کاربران ارسال شد. ✔");
     isSentForwardTextFlag = false;
   }
   if (sendMessageStep === "WAITING_FOR_CHATID") {
@@ -396,7 +396,7 @@ bot.on("message", async (ctx) => {
 
     const user = await findByChatID(isValidChatId);
     if (!user) {
-      ctx.reply("کاربری با ایدی مورد نظر یافت نشد!", {
+      ctx.reply("🚫 کاربری با ایدی مورد نظر یافت نشد! 🚫", {
         reply_markup: {
           keyboard: [[{ text: "🔙 | بازگشت" }]],
           resize_keyboard: true,
@@ -486,7 +486,7 @@ bot.on("message", async (ctx) => {
       }
     }
     ctx.sendChatAction("typing");
-    ctx.reply("پیام با موفقیت به تمامی کاربران ارسال شد.");
+    ctx.reply("پیام با موفقیت به تمامی کاربران ارسال شد. ✔");
     await redis.del("sendMessageUsersStep");
   }
 

@@ -102,7 +102,7 @@ const findAndChangeRole = async (chatID, ctx, role, message) => {
     });
     return;
   } else {
-    ctx.reply("کاربری با ایدی مورد نظر یافت نشد!", {
+    ctx.reply("🚫 کاربری با ایدی مورد نظر یافت نشد! 🚫", {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
