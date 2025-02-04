@@ -68,7 +68,7 @@ const sendMainKeyboard = (ctx, role, date, time) => {
     ctx.reply(
       `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
       Markup.inlineKeyboard([
-        [Markup.button.callback("ورود به پنل کاربری | 🔰", "panel_عسثق")],
+        [Markup.button.callback("ورود به پنل کاربری | 🔰", "panel_user")],
         [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
         [
           Markup.button.callback(date, "none"),
@@ -83,6 +83,25 @@ const sendMainKeyboard = (ctx, role, date, time) => {
   }
 };
 
+const sendUserKeyboard = (ctx) => {
+  ctx.editMessageText(
+    `🌹 | به پنل کاربری خوش اومدی ${ctx.chat.first_name} عزیز.\nیکی از گزینه های زیر را انتخاب کن:`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به منو", callback_data: "backMainMenue" }],
+          [{ text: "👤 | پروفایل", callback_data: "myProfile" }],
+          [
+            {
+              text: "👨‍💻 | ارتباط با برنامه نویس",
+              callback_data: "contactToDev",
+            },
+          ],
+        ],
+      },
+    }
+  );
+};
 const calculateTimestampToIranTime = (timestamp) => {
   const daysOfWeekInPersian = [
     "شنبه", // Sunday
@@ -113,5 +132,6 @@ module.exports = {
   checkUserMembership,
   sendAdminKeyBoard,
   sendMainKeyboard,
+  sendUserKeyboard,
   calculateTimestampToIranTime,
 };
