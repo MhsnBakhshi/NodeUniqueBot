@@ -18,6 +18,7 @@ const {
   sendAdminKeyBoard,
   sendMainKeyboard,
   calculateTimestampToIranTime,
+  sendUserKeyboard,
 } = require("./utils/actions");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -351,6 +352,75 @@ bot.hears("🔙 | بازگشت به منو", async (ctx) => {
   sendMainKeyboard(ctx, role, date, time);
 });
 
+bot.action("panel_user", async (ctx) => {
+  ctx.sendChatAction("typing");
+  return sendUserKeyboard(ctx);
+});
+
+bot.action("backMainMenue", async (ctx) => {
+  ctx.sendChatAction("typing");
+  const { date, time } = calculateTimestampToIranTime(Date.now());
+  const { role } = await getUserRole(ctx);
+
+  ctx.deleteMessage();
+  return sendMainKeyboard(ctx, role, date, time);
+});
+
+bot.action("myProfile", async (ctx) => {
+  // codes
+});
+
+bot.action("contactToDev", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  return ctx.editMessageText(
+    "👈🏻 | جهت ارتباط با برنامه نویس یکی از راه های زیر را انتخاب کن:",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          [{ text: "👥 | ارتباط مستقیم", url: "https://t.me/iDvMH" }],
+          [{ text: "🤖 | ارتباط غیر مستقیم", callback_data: "openChat" }],
+        ],
+      },
+    }
+  );
+});
+
+bot.action("backMenu", async (ctx) => {
+  ctx.sendChatAction("typing");
+  return sendUserKeyboard(ctx);
+});
+bot.action("endCaht", async (ctx) => {
+  ctx.sendChatAction("typing");
+  await redis.del("fromChatId");
+  await redis.del("adminChatId");
+
+  return ctx.editMessageText("گفتگو با موفقیت بسته شد. ✔");
+});
+
+bot.action("openChat", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  ctx.editMessageText("📬 | پیام مورد نظرتو بفرست:");
+
+  await redis.set(
+    `newMessageFromChatId: ${ctx.callbackQuery.from.id}`,
+    "WAITING_FOR_MESSAGE"
+  );
+  await redis.set("fromChatId", ctx.callbackQuery.from.id);
+});
+bot.action("answerChat", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  ctx.editMessageText("📬 | پاسخ خود را ارسال کنید:");
+
+  await redis.set(
+    `answerMessageToChatId: ${ctx.callbackQuery.from.id}`,
+    "ANSWERED_MESSAGE_TO_CHATID"
+  );
+  await redis.set("adminChatId", ctx.callbackQuery.from.id);
+});
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
@@ -361,6 +431,12 @@ bot.on("message", async (ctx) => {
   const removeAdminStep = await redis.get("removeAdminStep");
   const blockUserStep = await redis.get("blockUserStep");
   const unBlockUserStep = await redis.get("unBlockUserStep");
+  const newMessageFromChatIdStep = await redis.get(
+    `newMessageFromChatId: ${ctx.from.id}`
+  );
+  const answerMessageToChatIdStep = await redis.get(
+    `answerMessageToChatId: ${ctx.from.id}`
+  );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -541,6 +617,89 @@ bot.on("message", async (ctx) => {
 
     await unBanUser(ctx, chatID);
     await redis.del("unBlockUserStep");
+  }
+
+  if (newMessageFromChatIdStep === "WAITING_FOR_MESSAGE") {
+    const messageId = ctx.message.message_id;
+    const fromChatId = await redis.get("fromChatId");
+    const admins = await getAllAdmins();
+
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      "پیام شما با موفقیت دریافت و به ادمین ارسال شد. ✔\nلطفا منتظر پاسخ بمانید.",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+
+    for (const admin of admins) {
+      const chatId = Number(admin.chat_id);
+      try {
+        const { bio, username, first_name } = await ctx.telegram.getChat(
+          fromChatId
+        );
+
+        const response = `شما پیام جدید دارید از طرف: 👇\n👤نام کاربر: ${first_name}\n🆔 ایدی کاربر: ${fromChatId}\n🔖 یوزرنیم کاربر: @${
+          username ? username : "یوزرنیم ندارد"
+        }\n 📚 بیو کاربر: ${
+          bio ? bio : "بیو ندارد"
+        }\n\n <a href= "tg://openmessage?user_id=${fromChatId}">پیوی کاربر </a>
+      `;
+
+        await bot.telegram.forwardMessage(chatId, fromChatId, messageId);
+        ctx.reply(response, {
+          chat_id: chatId,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "💬 | پاسخ", callback_data: "answerChat" }],
+              [{ text: "🔚 | بستن گفتگو", callback_data: "endCaht" }],
+            ],
+          },
+          parse_mode: "HTML",
+        });
+        await redis.del(`newMessageFromChatId: ${ctx.from.id}`);
+      } catch (error) {
+        ctx.sendChatAction("typing");
+        ctx.reply(`خطا در ارسال پیام. ${error}`);
+      }
+    }
+  }
+
+  if (answerMessageToChatIdStep === "ANSWERED_MESSAGE_TO_CHATID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const userChatId = await redis.get("fromChatId");
+    const adminChatId = await redis.get("adminChatId");
+
+    const messageId = ctx.message.message_id;
+
+    ctx.sendChatAction("typing");
+
+    ctx.reply("پیام شما با موفقیت ارسال شد. ✔", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔚 | بستن گفتگو", callback_data: "endCaht" }],
+        ],
+      },
+    });
+    try {
+      ctx.sendChatAction("typing");
+
+      await ctx.telegram.sendMessage(
+        userChatId,
+        "شما پیام جدید از طرف ادمین دارید. 👇🏻"
+      );
+      await ctx.telegram.forwardMessage(userChatId, adminChatId, messageId);
+      await redis.del(`answerMessageToChatId: ${ctx.from.id}`);
+    } catch (error) {
+      ctx.sendChatAction("typing");
+      ctx.reply(`خطا در ارسال پیام. ${error}`);
+    }
   }
 });
 
