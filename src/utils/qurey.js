@@ -189,11 +189,36 @@ const getAllBans = async () => {
   });
   return bans;
 };
+
+const findUserStacks = async (userID) => {
+  const findUserStackIds = await prisma.userStack.findMany({
+    where: {
+      user_id: userID,
+    },
+    select: {
+      stack_id: true,
+    },
+  });
+
+  const stackIds = findUserStackIds.map((userStack) => userStack.stack_id);
+
+  const stacks = await prisma.stack.findMany({
+    where: {
+      id: { in: stackIds },
+    },
+    select: {
+      fields: true,
+    },
+  });
+
+  return stacks;
+};
 module.exports = {
   insertUser,
   getUserRole,
   getAllChatID,
   findByChatID,
+  findUserStacks,
   findAndRemove,
   findAndChangeRole,
   getAllAdmins,
