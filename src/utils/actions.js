@@ -51,8 +51,13 @@ const sendMainKeyboard = (ctx, role, date, time) => {
     ctx.reply(
       `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
       Markup.inlineKeyboard([
-        [Markup.button.callback("ورود به پنل مدیریت | 🔐", "panel_admin")],
         [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
+        [
+          Markup.button.callback("ورود به پنل کاربری | 🔰", "panel_user"),
+          Markup.button.callback("ورود به پنل مدیریت | 🔐", "panel_admin"),
+        ],
+        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
+
         [
           Markup.button.callback(date, "none"),
           Markup.button.callback("📆 تاریخ", "none"),

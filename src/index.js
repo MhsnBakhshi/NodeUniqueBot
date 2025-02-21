@@ -12,6 +12,7 @@ const {
   banUser,
   getAllBans,
   unBanUser,
+  findUserStacks,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -367,7 +368,35 @@ bot.action("backMainMenue", async (ctx) => {
 });
 
 bot.action("myProfile", async (ctx) => {
-  // codes
+  ctx.sendChatAction("typing");
+  const chatID = ctx.callbackQuery.from.id;
+
+  const user = await findByChatID(chatID);
+  const stacks = await findUserStacks(user.id);
+  const formattedStacks = stacks.map((stack) => stack.fields).join(", ");
+
+  const { date, time } = calculateTimestampToIranTime(user.created_at);
+
+  const response = `🖥 اطلاعات حساب کاربری شما به شرح زیر میباشد :
+
+🔢 ایدی عددی شما : ${chatID}
+🗣 نام شما : ${user.name}
+🖇 یوزرنیم شما : @${ctx.callbackQuery.from.username ?? "❌"}
+👁️‍🗨️ آدرس گیت هاب : ${user.gitHub ?? "❌"}
+👁️‍🗨️ آدرس لینکدین : ${user.linkedin ?? "❌"}
+   منطقه سکونت 🇮🇷 : ${user.address ?? "❌"}
+  🧑🏻‍💻حوزه فعالیت شما : ${formattedStacks == [] ? "❌" : formattedStacks}
+
+*(عضویت داخل کانال @NodeUnique اجباری است)*\n💎 تاریخ عضویت : ${date} ${time}`;
+
+  return ctx.editMessageText(response, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "✏️ | ویرایش پروفایل", callback_data: "editProfileInfo" }],
+        [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+      ],
+    },
+  });
 });
 
 bot.action("contactToDev", async (ctx) => {
