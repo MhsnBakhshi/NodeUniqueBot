@@ -213,10 +213,143 @@ const findUserStacks = async (userID) => {
 
   return stacks;
 };
+const getAllStacks = async () => {
+  const stacks = await prisma.stack.findMany({
+    select: {
+      fields: true,
+    },
+  });
+  return stacks;
+};
+
+const editGitHubLink = async (ctx, link) => {
+  const chatID = Number(ctx.from.id);
+  const user = await findByChatID(chatID);
+  await prisma.user.update({
+    where: {
+      chat_id: user.chat_id,
+    },
+    data: {
+      gitHub: link,
+    },
+  });
+  ctx.sendChatAction("typing");
+  return ctx.reply("لینک گیت هابت با موفقیت به پروفایلت اضافه شد. ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+};
+const editLinkedin = async (ctx, link) => {
+  const chatID = Number(ctx.from.id);
+  const user = await findByChatID(chatID);
+  await prisma.user.update({
+    where: {
+      chat_id: user.chat_id,
+    },
+    data: {
+      linkedin: link,
+    },
+  });
+  ctx.sendChatAction("typing");
+  return ctx.reply("لینک لینکدینت با موفقیت به پروفایلت اضافه شد. ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+};
+const editName = async (ctx, name) => {
+  const chatID = Number(ctx.from.id);
+  const user = await findByChatID(chatID);
+  await prisma.user.update({
+    where: {
+      chat_id: user.chat_id,
+    },
+    data: {
+      name,
+    },
+  });
+  ctx.sendChatAction("typing");
+  return ctx.reply("اسم پروفایلت با موفقیت ویرایش شد. ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+};
+const editCity = async (ctx, city) => {
+  const chatID = Number(ctx.from.id);
+  const user = await findByChatID(chatID);
+  await prisma.user.update({
+    where: {
+      chat_id: user.chat_id,
+    },
+    data: {
+      address: city.trim(),
+    },
+  });
+  ctx.sendChatAction("typing");
+  return ctx.reply("منطقه سکونت با موفقیت ویرایش شد. ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+};
+
+const editStacks = async (ctx, stacks) => {
+  const chatID = Number(ctx.from.id);
+  const user = await findByChatID(chatID);
+
+  for (const stack of stacks) {
+    const isExistStack = await prisma.stack.findMany({
+      where: {
+        fields: stack,
+      },
+    });
+
+    if (isExistStack.length === 0) {
+      await ctx.sendChatAction("typing");
+      return ctx.reply("حوزه ارسالی در لیست حوزه ها وجود ندارد! 🚫", {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "👥 | ارتباط مستقیم با برنامه نویس بات",
+                url: "https://t.me/iDvMH",
+              },
+            ],
+
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      });
+    }
+
+    await prisma.userStack.create({
+      data: {
+        stack_id: isExistStack[0].id,
+        user_id: user.id,
+       
+      },
+    });
+    
+  }
+  await ctx.sendChatAction("typing");
+  return ctx.reply("لیست حوزه فعالیت شما با موفقیت ویرایش شد. ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+};
+
 module.exports = {
   insertUser,
   getUserRole,
+  editLinkedin,
+  editName,
+  editStacks,
+  editCity,
   getAllChatID,
+  editGitHubLink,
   findByChatID,
   findUserStacks,
   findAndRemove,
@@ -225,5 +358,6 @@ module.exports = {
   isUserBanned,
   banUser,
   getAllBans,
+  getAllStacks,
   unBanUser,
 };

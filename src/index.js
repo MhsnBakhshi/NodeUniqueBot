@@ -13,6 +13,12 @@ const {
   getAllBans,
   unBanUser,
   findUserStacks,
+  editGitHubLink,
+  editLinkedin,
+  editName,
+  editCity,
+  getAllStacks,
+  editStacks,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -64,7 +70,7 @@ bot.start(async (ctx) => {
   sendMainKeyboard(ctx, role, date, time);
 });
 
-bot.command("donit", (ctx) => {
+bot.command("donate", (ctx) => {
   ctx.reply(`${ctx.chat.first_name} عزیز، 
 برای حمایت از ربات میتوانید یکی از راه ها را انتخاب نمایید. حمایت شما باعث دلگرمی برنامه نویس ربات است.🙏❤️
 
@@ -392,10 +398,125 @@ bot.action("myProfile", async (ctx) => {
   return ctx.editMessageText(response, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "✏️ | ویرایش پروفایل", callback_data: "editProfileInfo" }],
+        [
+          { text: "✏️ | ویرایش پروفایل", callback_data: "editProfileInfo" },
+          { text: "❌ | حذف پروفایل", callback_data: "delProfileInfo" },
+        ],
         [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
       ],
     },
+  });
+});
+
+bot.action("editProfileInfo", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  ctx.editMessageText(
+    "👇🏻 | یکی از بخش های زیر که میخوای ویرایش بشه انتخاب کن: ",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "✏️ | ویرایش آدرس گیت هاب", callback_data: "editGitHub" }],
+          [{ text: "✏️ | ویرایش آدرس لینکدین", callback_data: "editLinkedin" }],
+          [
+            { text: "✏️ | منطقه سکونت", callback_data: "editCity" },
+            { text: "✏️ | حوزه فعالیت", callback_data: "editStack" },
+          ],
+          [{ text: "✏️ | ویرایش نام کاربری", callback_data: "editName" }],
+
+          [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+        ],
+      },
+    }
+  );
+});
+
+bot.action("editGitHub", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  await redis.setex(
+    `editGitHubStep:ChatID:${ctx?.callbackQuery?.from?.id}`,
+    120,
+    "WAITING_FOR_LINK"
+  );
+
+  return ctx.editMessageText("👈🏻 | حالا آدرس گیت هابت رو بفرست.", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+});
+
+bot.action("editLinkedin", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  await redis.setex(
+    `editLinkedinStep:ChatID:${ctx?.callbackQuery?.from?.id}`,
+    120,
+    "WAITING_FOR_LINK"
+  );
+
+  return ctx.editMessageText("👈🏻 | حالا آدرس لینکدینت رو بفرست.", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+});
+bot.action("editName", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  await redis.setex(
+    `editNameStep:ChatID:${ctx?.callbackQuery?.from?.id}`,
+    120,
+    "WAITING_FOR_NAME"
+  );
+
+  return ctx.editMessageText("👈🏻 | اسم خود رو بصورت کامل بفرست", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+});
+bot.action("editCity", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  await redis.setex(
+    `editCityStep:ChatID:${ctx?.callbackQuery?.from?.id}`,
+    120,
+    "WAITING_FOR_CITY"
+  );
+
+  return ctx.editMessageText(
+    "👈🏻 | اسم شهر و استان خودت رو بصورت مخفف ارسال کن\n.مثلا اگه تهران هستی به این صورت: تهران، نیاوران\n یا اردبیل، مشکین شهر.",
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+    }
+  );
+});
+bot.action("editStack", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  const stacks = await getAllStacks();
+  let stackList =
+    "از بین حوزه های زیر یکی رو ارسال کن.\nمیتونی با , (کاما) چند حوزه فعالیتت رو جدا کنی.\n لیست حوزه های موجود به شرح زیر میباشد: 👨‍💻\n\n";
+
+  stacks.forEach((stack, index) => {
+    stackList += `${index + 1}` + " - " + "`" + `${stack.fields}` + "`" + "\n";
+  });
+
+  await redis.setex(
+    `editStackStep:ChatID:${ctx?.callbackQuery?.from?.id}`,
+    120,
+    "WAITING_FOR_STACK"
+  );
+
+  return ctx.editMessageText(stackList, {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+    parse_mode: "Markdown",
   });
 });
 
@@ -466,6 +587,15 @@ bot.on("message", async (ctx) => {
   const answerMessageToChatIdStep = await redis.get(
     `answerMessageToChatId: ${ctx.from.id}`
   );
+  const editGitHubStep = await redis.get(
+    `editGitHubStep:ChatID:${ctx.from.id}`
+  );
+  const editLinkedinStep = await redis.get(
+    `editLinkedinStep:ChatID:${ctx.from.id}`
+  );
+  const editNameStep = await redis.get(`editNameStep:ChatID:${ctx.from.id}`);
+  const editCityStep = await redis.get(`editCityStep:ChatID:${ctx.from.id}`);
+  const editStackStep = await redis.get(`editStackStep:ChatID:${ctx.from.id}`);
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -729,6 +859,59 @@ bot.on("message", async (ctx) => {
       ctx.sendChatAction("typing");
       ctx.reply(`خطا در ارسال پیام. ${error}`);
     }
+  }
+
+  if (editGitHubStep === "WAITING_FOR_LINK") {
+    const link = ctx.text;
+    if (!link.startsWith("https://github.com/")) {
+      return ctx.reply("آدرس معتبر نیست! 🚫\nمجدد بفرست: 👇🏻", {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      });
+    }
+
+    await editGitHubLink(ctx, link);
+    await redis.del(`editGitHubStep:ChatID:${ctx.from.id}`);
+  }
+  if (editLinkedinStep === "WAITING_FOR_LINK") {
+    const link = ctx.text;
+    if (!link.startsWith("https://www.linkedin.com/")) {
+      return ctx.reply("آدرس معتبر نیست! 🚫\nمجدد بفرست: 👇🏻", {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      });
+    }
+
+    await editLinkedin(ctx, link);
+    await redis.del(`editLinkedinStep:ChatID:${ctx.from.id}`);
+  }
+  if (editNameStep === "WAITING_FOR_NAME") {
+    const name = ctx.text;
+
+    await editName(ctx, name);
+    await redis.del(`editNameStep:ChatID:${ctx.from.id}`);
+  }
+  if (editCityStep === "WAITING_FOR_CITY") {
+    const city = ctx.text;
+
+    await editCity(ctx, city);
+    await redis.del(`editCityStep:ChatID:${ctx.from.id}`);
+  }
+  if (editStackStep === "WAITING_FOR_STACK") {
+    let stacks = ctx.text.trim();
+
+    stacks = /,/.test(stacks)
+      ? stacks.split(",").map((e) => e.trim())
+      : [stacks];
+
+    await editStacks(ctx, stacks);
+    await redis.del(`editStackStep:ChatID:${ctx.from.id}`);
   }
 });
 
