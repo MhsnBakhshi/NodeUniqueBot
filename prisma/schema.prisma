@@ -37,12 +37,10 @@ model Stack {
 }
 
 model UserStack {
-  user_id    Int
-  stack_id   Int
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  stack      Stack    @relation(fields: [stack_id], references: [id], onDelete: Cascade)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  user_id  Int
+  stack_id Int
+  user     User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  stack    Stack @relation(fields: [stack_id], references: [id], onDelete: Cascade)
 
   @@id([user_id, stack_id])
 }
