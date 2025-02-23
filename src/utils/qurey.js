@@ -217,6 +217,10 @@ const getAllStacks = async () => {
   const stacks = await prisma.stack.findMany({
     select: {
       fields: true,
+      id: true,
+    },
+    orderBy: {
+      created_at: "asc",
     },
   });
   return stacks;
