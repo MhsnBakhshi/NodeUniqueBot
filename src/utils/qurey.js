@@ -328,10 +328,8 @@ const editStacks = async (ctx, stacks) => {
       data: {
         stack_id: isExistStack[0].id,
         user_id: user.id,
-       
       },
     });
-    
   }
   await ctx.sendChatAction("typing");
   return ctx.reply("لیست حوزه فعالیت شما با موفقیت ویرایش شد. ✔", {
@@ -341,8 +339,41 @@ const editStacks = async (ctx, stacks) => {
   });
 };
 
+const removeUserStacks = async (ctx, chatID) => {
+  const user = await findByChatID(Number(chatID));
+
+  const isUserHasStack = await prisma.userStack.findMany({
+    where: {
+      user_id: user.id,
+    },
+  });
+
+  if (isUserHasStack.length === 0) {
+    await ctx.sendChatAction("typing");
+    return ctx.editMessageText("لیست حوزه شما خالی است! 🚫", {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+    });
+  }
+
+  await prisma.userStack.deleteMany({
+    where: {
+      user_id: user.id,
+    },
+  });
+
+  await ctx.sendChatAction("typing");
+  return ctx.editMessageText("حوزه فعالیت شما با موفقیت حذف شد. ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+};
+
 module.exports = {
   insertUser,
+  removeUserStacks,
   getUserRole,
   editLinkedin,
   editName,
