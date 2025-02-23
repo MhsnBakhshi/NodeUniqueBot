@@ -20,6 +20,7 @@ const {
   getAllStacks,
   editStacks,
   removeUserStacks,
+  removeStackQuery,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -358,6 +359,15 @@ bot.hears("❌ | حذف حوزه", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | آیدی دیتابیس حوزه را جهت حذف ارسال نمایید.", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+
+    await redis.setex("removeStack", 120, "WAITING_FOR_STACKID");
   }
 });
 
@@ -710,6 +720,7 @@ bot.on("message", async (ctx) => {
   const removeAdminStep = await redis.get("removeAdminStep");
   const blockUserStep = await redis.get("blockUserStep");
   const unBlockUserStep = await redis.get("unBlockUserStep");
+  const removeStack = await redis.get("removeStack");
   const newMessageFromChatIdStep = await redis.get(
     `newMessageFromChatId: ${ctx.from.id}`
   );
@@ -1041,6 +1052,14 @@ bot.on("message", async (ctx) => {
 
     await editStacks(ctx, stacks);
     await redis.del(`editStackStep:ChatID:${ctx.from.id}`);
+  }
+
+  if (removeStack === "WAITING_FOR_STACKID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    await removeStackQuery(ctx);
+    await redis.del("removeStack");
   }
 });
 
