@@ -21,6 +21,7 @@ const {
   editStacks,
   removeUserStacks,
   removeStackQuery,
+  insertStack,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -359,7 +360,7 @@ bot.hears("❌ | حذف حوزه", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
-    ctx.reply("👈🏻 | آیدی دیتابیس حوزه را جهت حذف ارسال نمایید.", {
+    ctx.reply("👈🏻 | آیدی حوزه را جهت حذف ارسال نمایید.", {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
@@ -382,6 +383,15 @@ bot.hears("➕ | افزودن حوزه", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | اسم حوزه را ارسال نمایید.", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+
+    await redis.setex("addStack", 120, "WAITING_FOR_TITLE");
   }
 });
 
@@ -721,6 +731,7 @@ bot.on("message", async (ctx) => {
   const blockUserStep = await redis.get("blockUserStep");
   const unBlockUserStep = await redis.get("unBlockUserStep");
   const removeStack = await redis.get("removeStack");
+  const addStack = await redis.get("addStack");
   const newMessageFromChatIdStep = await redis.get(
     `newMessageFromChatId: ${ctx.from.id}`
   );
@@ -1060,6 +1071,19 @@ bot.on("message", async (ctx) => {
 
     await removeStackQuery(ctx);
     await redis.del("removeStack");
+  }
+
+  if (addStack === "WAITING_FOR_TITLE") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    let titles = ctx.text.trim();
+
+    titles = /,/.test(titles)
+      ? titles.split(",").map((title) => title.trim())
+      : [titles];
+    await insertStack(ctx, titles);
+    await redis.del("addStack");
   }
 });
 
