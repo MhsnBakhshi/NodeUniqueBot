@@ -371,10 +371,47 @@ const removeUserStacks = async (ctx, chatID) => {
   });
 };
 
+const removeStackQuery = async (ctx) => {
+  const stackID = ctx.text;
+
+  const isExistStack = await prisma.stack.findFirst({
+    where: {
+      id: Number(stackID),
+    },
+  });
+
+  if (!isExistStack) {
+    await ctx.sendChatAction("typing");
+    return ctx.reply("حوزه یافت نشد ! 🚫", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+  }
+
+  await prisma.stack.delete({
+    where: {
+      id: isExistStack.id,
+    },
+  });
+
+  await ctx.sendChatAction("typing");
+  return ctx.reply("حوزه با موفقیت حذف شد. ✔", {
+    reply_markup: {
+      keyboard: [[{ text: "🔙 | بازگشت" }]],
+      resize_keyboard: true,
+      remove_keyboard: true,
+    },
+  });
+};
+
 module.exports = {
   insertUser,
   removeUserStacks,
   getUserRole,
+  removeStackQuery,
   editLinkedin,
   editName,
   editStacks,
