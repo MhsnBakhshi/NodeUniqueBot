@@ -406,9 +406,44 @@ const removeStackQuery = async (ctx) => {
     },
   });
 };
+const insertStack = async (ctx, titles) => {
+  for (const title of titles) {
+    const isExistStack = await prisma.stack.findMany({
+      where: {
+        fields: title.toLocaleLowerCase(),
+      },
+    });
+
+    if (isExistStack.length === 0) {
+      await prisma.stack.createMany({
+        data: {
+          fields: title.toLocaleLowerCase(),
+        },
+      });
+
+      await ctx.sendChatAction("typing");
+      return ctx.reply("حوزه با موفقیت اضافه شد. ✔", {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      });
+    }
+    await ctx.sendChatAction("typing");
+    return ctx.reply("حوزه از قبل وجود دارد. ❌", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+  }
+};
 
 module.exports = {
   insertUser,
+  insertStack,
   removeUserStacks,
   getUserRole,
   removeStackQuery,
