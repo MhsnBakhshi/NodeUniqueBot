@@ -27,6 +27,7 @@ const {
   sendMainKeyboard,
   calculateTimestampToIranTime,
   sendUserKeyboard,
+  sendStackKeyBoard,
 } = require("./utils/actions");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -343,6 +344,41 @@ bot.hears("🚫| مسدود کردن", async (ctx) => {
     );
 
     await redis.setex("blockUserStep", 120, "WAITING_FOR_CHATID");
+  }
+});
+
+bot.hears("💻 | تنظیمات حوزه ها", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+    sendStackKeyBoard(ctx);
+  }
+});
+bot.hears("❌ | حذف حوزه", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+  }
+});
+
+bot.hears("✏ | ویرایش حوزه", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+  }
+});
+
+bot.hears("➕ | افزودن حوزه", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
+  }
+});
+
+bot.hears("🖥 | لیست حوزها", async (ctx) => {
+  const userRole = await getUserRole(ctx);
+  if (userRole.role === "ADMIN") {
+    ctx.sendChatAction("typing");
   }
 });
 
