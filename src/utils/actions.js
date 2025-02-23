@@ -38,7 +38,7 @@ const sendAdminKeyBoard = (ctx) => {
           { text: "🆔 | آیدی یاب" },
           { text: "🚨 | حذف کاربر" },
         ],
-        [{ text: "👤 | تنظیمات ادمین ها" }],
+        [{ text: "👤 | تنظیمات ادمین ها" }, { text: "💻 | تنظیمات حوزه ها" }],
       ],
       resize_keyboard: true,
       one_time_keyboard: true,
@@ -107,6 +107,21 @@ const sendUserKeyboard = (ctx) => {
     }
   );
 };
+
+const sendStackKeyBoard = (ctx) => {
+  return ctx.reply("👈🏻 | گزینه مورد نظر را انتخاب کنید", {
+    reply_markup: {
+      keyboard: [
+        [{ text: "🖥 | لیست حوزها" }],
+        [{ text: "➕ | افزودن حوزه" }, { text: "✏ | ویرایش حوزه" }],
+        [{ text: "❌ | حذف حوزه" }],
+        [{ text: "🔙 | بازگشت" }],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    },
+  });
+};
 const calculateTimestampToIranTime = (timestamp) => {
   const daysOfWeekInPersian = [
     "شنبه", // Sunday
@@ -138,5 +153,6 @@ module.exports = {
   sendAdminKeyBoard,
   sendMainKeyboard,
   sendUserKeyboard,
+  sendStackKeyBoard,
   calculateTimestampToIranTime,
 };
