@@ -1,5 +1,5 @@
 const { Telegraf, Markup } = require("telegraf");
-const { connectToDB, redis } = require("./db");
+const { connectToDB, redis, prisma } = require("./db");
 const {
   insertUser,
   getUserRole,
@@ -19,6 +19,7 @@ const {
   editCity,
   getAllStacks,
   editStacks,
+  removeUserStacks,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -429,6 +430,98 @@ bot.action("editProfileInfo", async (ctx) => {
       },
     }
   );
+});
+bot.action("delProfileInfo", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  ctx.editMessageText("👇🏻 | یکی از بخش های زیر که میخوای حذف بشه انتخاب کن: ", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "❌ | آدرس گیت هاب", callback_data: "delGitHub" }],
+        [{ text: "❌ | آدرس لینکدین", callback_data: "delLinkedin" }],
+        [
+          { text: "❌ | منطقه سکونت", callback_data: "delCity" },
+          { text: "❌ | حوزه فعالیت", callback_data: "delStack" },
+        ],
+        [{ text: "❌ | نام کاربری", callback_data: "delName" }],
+
+        [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+      ],
+    },
+  });
+});
+
+bot.action("delName", async (ctx) => {
+  ctx.sendChatAction("typing");
+  await prisma.user.update({
+    where: {
+      chat_id: ctx?.callbackQuery?.from?.id,
+    },
+    data: {
+      name: ctx.callbackQuery?.from?.first_name,
+    },
+  });
+  return ctx.editMessageText(
+    "نام کاربریت با موفقیت حذف و به حالت اولیه بازگشت. ✔",
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+    }
+  );
+});
+bot.action("delCity", async (ctx) => {
+  ctx.sendChatAction("typing");
+  await prisma.user.update({
+    where: {
+      chat_id: ctx?.callbackQuery?.from?.id,
+    },
+    data: {
+      address: null,
+    },
+  });
+  return ctx.editMessageText("منطقه سکونت با موفقیت حذف شد. ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+});
+bot.action("delLinkedin", async (ctx) => {
+  ctx.sendChatAction("typing");
+  await prisma.user.update({
+    where: {
+      chat_id: ctx?.callbackQuery?.from?.id,
+    },
+    data: {
+      linkedin: null,
+    },
+  });
+  return ctx.editMessageText("آدرس لینکدینت با موفقیت حذف شد. ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+});
+bot.action("delGitHub", async (ctx) => {
+  ctx.sendChatAction("typing");
+  await prisma.user.update({
+    where: {
+      chat_id: ctx?.callbackQuery?.from?.id,
+    },
+    data: {
+      gitHub: null,
+    },
+  });
+  return ctx.editMessageText("آدرس گیت هابت با موفقیت حذف شد. ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+});
+bot.action("delStack", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  await removeUserStacks(ctx, ctx?.callbackQuery?.from?.id);
 });
 
 bot.action("editGitHub", async (ctx) => {
