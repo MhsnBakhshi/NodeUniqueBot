@@ -22,6 +22,8 @@ const {
   removeUserStacks,
   removeStackQuery,
   insertStack,
+  checkIsStackInserted,
+  editStackTitleQuery,
 } = require("./utils/qurey");
 const {
   checkUserMembership,
@@ -376,6 +378,15 @@ bot.hears("✏ | ویرایش حوزه", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
     ctx.sendChatAction("typing");
+    ctx.reply("👈🏻 | آیدی حوزه را ارسال نمایید.", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+
+    await redis.setex("editStackTitleStep", 120, "WAITING_FOR_STACKID");
   }
 });
 
@@ -408,7 +419,7 @@ bot.hears("🖥 | لیست حوزها", async (ctx) => {
     });
 
     ctx.sendChatAction("typing");
-    ctx.reply(stackList, {
+    return ctx.reply(stackList, {
       reply_markup: {
         keyboard: [[{ text: "🔙 | بازگشت" }]],
         resize_keyboard: true,
@@ -749,6 +760,11 @@ bot.on("message", async (ctx) => {
   const unBlockUserStep = await redis.get("unBlockUserStep");
   const removeStack = await redis.get("removeStack");
   const addStack = await redis.get("addStack");
+  const editStackTitleStep = await redis.get("editStackTitleStep");
+  const WAITING_FOR_STACK_TITLE_FOR_EDIT = await redis.get(
+    "WAITING_FOR_STACK_TITLE_FOR_EDIT"
+  );
+
   const newMessageFromChatIdStep = await redis.get(
     `newMessageFromChatId: ${ctx.from.id}`
   );
@@ -1101,6 +1117,59 @@ bot.on("message", async (ctx) => {
       : [titles];
     await insertStack(ctx, titles);
     await redis.del("addStack");
+  }
+
+  if (editStackTitleStep === "WAITING_FOR_STACKID") {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const stackID = Number(ctx.text);
+
+    const result = await checkIsStackInserted(stackID);
+
+    if (result) {
+      await redis.setex("WAITING_FOR_STACK_TITLE_FOR_EDIT", 120, stackID);
+      await redis.del("editStackTitleStep");
+      await ctx.sendChatAction("typing");
+      return ctx.reply("👈🏻 | اسم حوزه را جهت ویرایش ارسال نمایید.", {
+        reply_markup: {
+          keyboard: [[{ text: "🔙 | بازگشت" }]],
+          resize_keyboard: true,
+          remove_keyboard: true,
+        },
+      });
+    }
+
+    await redis.del("editStackTitleStep");
+    await ctx.sendChatAction("typing");
+    return ctx.reply("حوزه وجود ندارد ! ❌", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
+  }
+
+  if (WAITING_FOR_STACK_TITLE_FOR_EDIT) {
+    const userRole = await getUserRole(ctx);
+    if (userRole.role !== "ADMIN") return;
+
+    const title = ctx.text;
+    const stackID = await redis.get("WAITING_FOR_STACK_TITLE_FOR_EDIT");
+
+    await editStackTitleQuery(Number(stackID), title);
+
+    await redis.del("WAITING_FOR_STACK_TITLE_FOR_EDIT");
+
+    await ctx.sendChatAction("typing");
+    return ctx.reply(" ✔.اسم حوزه را با موفقیت ویرایش شد", {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+    });
   }
 });
 
