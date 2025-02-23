@@ -445,10 +445,34 @@ const insertStack = async (ctx, titles) => {
   }
 };
 
+const checkIsStackInserted = async (stackID) => {
+  const checkExisStack = await prisma.stack.findFirst({
+    where: {
+      id: stackID,
+    },
+  });
+
+  if (!checkExisStack) return false;
+  else return true;
+};
+const editStackTitleQuery = async (stackID, title) => {
+  await prisma.stack.update({
+    where: {
+      id: stackID,
+    },
+    data: {
+      fields: title,
+    },
+  });
+
+  return true;
+};
 module.exports = {
   insertUser,
   insertStack,
+  editStackTitleQuery,
   removeUserStacks,
+  checkIsStackInserted,
   getUserRole,
   removeStackQuery,
   editLinkedin,
