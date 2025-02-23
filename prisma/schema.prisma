@@ -11,10 +11,14 @@ model User {
   id         Int           @id @default(autoincrement())
   name       String
   chat_id    BigInt        @unique
+  gitHub     String?
+  linkedin   String?
+  address    String?
+  stacks     UserStack[]
   role       UserRoleEnum? @default(USER)
+  Ban        Ban[]
   created_at DateTime      @default(now())
   updated_at DateTime      @updatedAt
-  Ban        Ban[]
 }
 
 model Ban {
@@ -22,6 +26,23 @@ model Ban {
   user       User     @relation(fields: [chat_id], references: [chat_id])
   chat_id    BigInt
   created_at DateTime @default(now())
+}
+
+model Stack {
+  id         Int         @id @default(autoincrement())
+  fields     String      @unique
+  users      UserStack[]
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+}
+
+model UserStack {
+  user_id  Int
+  stack_id Int
+  user     User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  stack    Stack @relation(fields: [stack_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, stack_id])
 }
 
 enum UserRoleEnum {

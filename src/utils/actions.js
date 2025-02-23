@@ -38,7 +38,7 @@ const sendAdminKeyBoard = (ctx) => {
           { text: "🆔 | آیدی یاب" },
           { text: "🚨 | حذف کاربر" },
         ],
-        [{ text: "👤 | تنظیمات ادمین ها" }],
+        [{ text: "👤 | تنظیمات ادمین ها" }, { text: "💻 | تنظیمات حوزه ها" }],
       ],
       resize_keyboard: true,
       one_time_keyboard: true,
@@ -51,8 +51,13 @@ const sendMainKeyboard = (ctx, role, date, time) => {
     ctx.reply(
       `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
       Markup.inlineKeyboard([
-        [Markup.button.callback("ورود به پنل مدیریت | 🔐", "panel_admin")],
         [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
+        [
+          Markup.button.callback("ورود به پنل کاربری | 🔰", "panel_user"),
+          Markup.button.callback("ورود به پنل مدیریت | 🔐", "panel_admin"),
+        ],
+        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
+
         [
           Markup.button.callback(date, "none"),
           Markup.button.callback("📆 تاریخ", "none"),
@@ -68,7 +73,7 @@ const sendMainKeyboard = (ctx, role, date, time) => {
     ctx.reply(
       `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
       Markup.inlineKeyboard([
-        [Markup.button.callback("ورود به پنل کاربری | 🔰", "panel_عسثق")],
+        [Markup.button.callback("ورود به پنل کاربری | 🔰", "panel_user")],
         [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
         [
           Markup.button.callback(date, "none"),
@@ -83,6 +88,40 @@ const sendMainKeyboard = (ctx, role, date, time) => {
   }
 };
 
+const sendUserKeyboard = (ctx) => {
+  ctx.editMessageText(
+    `🌹 | به پنل کاربری خوش اومدی ${ctx.chat.first_name} عزیز.\nیکی از گزینه های زیر را انتخاب کن:`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به منو", callback_data: "backMainMenue" }],
+          [{ text: "👤 | پروفایل", callback_data: "myProfile" }],
+          [
+            {
+              text: "👨‍💻 | ارتباط با برنامه نویس",
+              callback_data: "contactToDev",
+            },
+          ],
+        ],
+      },
+    }
+  );
+};
+
+const sendStackKeyBoard = (ctx) => {
+  return ctx.reply("👈🏻 | گزینه مورد نظر را انتخاب کنید", {
+    reply_markup: {
+      keyboard: [
+        [{ text: "🖥 | لیست حوزها" }],
+        [{ text: "➕ | افزودن حوزه" }, { text: "✏ | ویرایش حوزه" }],
+        [{ text: "❌ | حذف حوزه" }],
+        [{ text: "🔙 | بازگشت" }],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    },
+  });
+};
 const calculateTimestampToIranTime = (timestamp) => {
   const daysOfWeekInPersian = [
     "شنبه", // Sunday
@@ -113,5 +152,7 @@ module.exports = {
   checkUserMembership,
   sendAdminKeyBoard,
   sendMainKeyboard,
+  sendUserKeyboard,
+  sendStackKeyBoard,
   calculateTimestampToIranTime,
 };

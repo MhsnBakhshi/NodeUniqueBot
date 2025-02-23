@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE `user` ADD COLUMN `address` VARCHAR(191) NULL,
+    ADD COLUMN `gitHub` VARCHAR(191) NULL,
+    ADD COLUMN `linkedin` VARCHAR(191) NULL;
