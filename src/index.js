@@ -398,7 +398,24 @@ bot.hears("➕ | افزودن حوزه", async (ctx) => {
 bot.hears("🖥 | لیست حوزها", async (ctx) => {
   const userRole = await getUserRole(ctx);
   if (userRole.role === "ADMIN") {
+    const stacks = await getAllStacks();
+
+    let stackList = "💻 لیست حوزها به شرح زیر میباشد:\n\n";
+
+    stacks.forEach((stack) => {
+      stackList +=
+        `🆔 ${stack.id}` + " -> " + "`" + `${stack.fields}` + "`" + "\n";
+    });
+
     ctx.sendChatAction("typing");
+    ctx.reply(stackList, {
+      reply_markup: {
+        keyboard: [[{ text: "🔙 | بازگشت" }]],
+        resize_keyboard: true,
+        remove_keyboard: true,
+      },
+      parse_mode: "Markdown",
+    });
   }
 });
 
