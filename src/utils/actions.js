@@ -159,7 +159,6 @@ const calculateTimestampToIranTime = (timestamp) => {
   return { date, time };
 };
 
-
 const findTeamMateFromUserProfileStack = async (ctx) => {
   const user = await findByChatID(Number(ctx.callbackQuery?.from?.id));
 
@@ -248,12 +247,90 @@ const findTeamMateFromUserProfileStack = async (ctx) => {
     },
     parse_mode: "HTML",
   });
-}
+};
 
+const findTeamMateFromUserRequstStack = async (ctx, stack) => {
+  const existStack = await prisma.stack.findFirst({
+    where: { fields: stack },
+    select: {
+      id: true,
+      users: true,
+    },
+  });
+
+  if (!existStack) {
+    await ctx.sendChatAction("typing");
+    ctx.deleteMessage();
+    return ctx.reply(
+      "حوزه ارسالی معتبر نمیباشد! لطفا از لیست حوزهای ثبت شده ارسال نمایید! 🚫",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+  if (existStack.users.length === 0) {
+    await ctx.sendChatAction("typing");
+    return ctx.reply("متاسفانه کاربری با حوزه ارسالی در ربات وجود ندارد :(", {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+    });
+  }
+
+  let matchedUsers = new Set();
+  existStack.users.forEach((mate) => {
+    matchedUsers.add(mate.user_id);
+  });
+
+  const matchedUserDetails = await prisma.user.findMany({
+    where: {
+      id: { in: Array.from(matchedUsers) },
+    },
+    select: {
+      linkedin: true,
+      gitHub: true,
+      address: true,
+      chat_id: true,
+      name: true,
+    },
+  });
+  
+    let response = "🔎کاربران حوزه درخواستی شما:\n\n";
+
+    matchedUserDetails.forEach((mateInfo) => {
+      let linkedin = mateInfo.linkedin
+        ? `\n🔹 لینکدین: ${mateInfo.linkedin}`
+        : "";
+      let github = mateInfo.gitHub ? `\n🔹 گیتهاب: ${mateInfo.gitHub}` : "";
+      let city = mateInfo.address ? `\n📍 محل سکونت: ${mateInfo.address}` : "";
+
+      response += `👤 اسم: ${mateInfo.name}
+    🔗 <a href="tg://openmessage?user_id=${mateInfo.chat_id}">پیوی ${mateInfo.name}</a>${linkedin}${github}${city}\n\n`;
+    });
+
+    await ctx.sendChatAction("typing");
+    ctx.reply("⌛️ درحال جستجو ... ممکن است کمی زمان بر باشد ⏳");
+
+    await ctx.sendChatAction("typing");
+    ctx.deleteMessage(ctx.message.message_id + 1);
+
+    return ctx.reply(response, {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+      parse_mode: "HTML",
+    });
+  
+};
 module.exports = {
   checkUserMembership,
   sendAdminKeyBoard,
   findTeamMateFromUserProfileStack,
+  findTeamMateFromUserRequstStack,
   sendMainKeyboard,
   sendUserKeyboard,
   sendStackKeyBoard,
