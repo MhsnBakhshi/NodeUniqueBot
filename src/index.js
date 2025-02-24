@@ -32,6 +32,7 @@ const {
   calculateTimestampToIranTime,
   sendUserKeyboard,
   sendStackKeyBoard,
+  findTeamMateFromUserProfileStack,
 } = require("./utils/actions");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -748,6 +749,38 @@ bot.action("answerChat", async (ctx) => {
   );
   await redis.set("adminChatId", ctx.callbackQuery.from.id);
 });
+bot.action("team_mate", async (ctx) => {
+  await ctx.sendChatAction("typing");
+
+  return ctx.editMessageText(
+    `خب خب به بخش هم تیمی یاب خوش اومدی. \nیکی از گزینه های زیر رو انتخاب کن: 👇🏻`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "🔍 | جستجو بر اساس حوزه پروفایل شما",
+              callback_data: "user_profile_stack",
+            },
+          ],
+          [
+            {
+              text: "🔎 | جستجو بر اساس حوزه درخواستی",
+              callback_data: "user_request_stack",
+            },
+          ],
+          [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+        ],
+      },
+    }
+  );
+});
+bot.action("user_profile_stack", async (ctx) => {
+  await findTeamMateFromUserProfileStack(ctx);
+});
+
+bot.action("user_request_stack", async (ctx) => {});
+
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
