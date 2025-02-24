@@ -33,6 +33,7 @@ const {
   sendUserKeyboard,
   sendStackKeyBoard,
   findTeamMateFromUserProfileStack,
+  findTeamMateFromUserRequstStack,
 } = require("./utils/actions");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -779,7 +780,30 @@ bot.action("user_profile_stack", async (ctx) => {
   await findTeamMateFromUserProfileStack(ctx);
 });
 
-bot.action("user_request_stack", async (ctx) => {});
+bot.action("user_request_stack", async (ctx) => {
+  ctx.sendChatAction("typing");
+
+  const stacks = await getAllStacks();
+  let stackList =
+    "از بین حوزه های زیر یکی رو ارسال کن.\n لیست حوزه های موجود به شرح زیر میباشد: 👨‍💻\n\n";
+
+  stacks.forEach((stack, index) => {
+    stackList += `${index + 1}` + " - " + "`" + `${stack.fields}` + "`" + "\n";
+  });
+
+  await redis.setex(
+    `UserRequestStack:ChatID:${ctx?.callbackQuery?.from?.id}`,
+    120,
+    "WAITING_FOR_STACK"
+  );
+
+  return ctx.editMessageText(stackList, {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+    parse_mode: "Markdown",
+  });
+});
 
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
@@ -813,6 +837,10 @@ bot.on("message", async (ctx) => {
   const editNameStep = await redis.get(`editNameStep:ChatID:${ctx.from.id}`);
   const editCityStep = await redis.get(`editCityStep:ChatID:${ctx.from.id}`);
   const editStackStep = await redis.get(`editStackStep:ChatID:${ctx.from.id}`);
+
+  const userRequestStack = await redis.get(
+    `UserRequestStack:ChatID:${ctx.from.id}`
+  );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
     const users = await getAllChatID();
@@ -1203,6 +1231,14 @@ bot.on("message", async (ctx) => {
         remove_keyboard: true,
       },
     });
+  }
+
+  if (userRequestStack === "WAITING_FOR_STACK") {
+    let stack = ctx.text.trim();
+
+    await findTeamMateFromUserRequstStack(ctx, stack);
+
+    await redis.del(`UserRequestStack:ChatID:${ctx.from.id}`);
   }
 });
 
