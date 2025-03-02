@@ -54,7 +54,6 @@ const sendMainKeyboard = (ctx, role, date, time) => {
       `سلام ${ctx.chat.first_name} عزیز. \n به ربات نود یونیک خوش اومدی یکی از گزینه های زیر رو انتخاب کن:`,
       Markup.inlineKeyboard([
         [Markup.button.callback("ورود به پنل مدیریت | 🔐", "panel_admin")],
-        [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
         [Markup.button.callback("ورود به پنل کاربری | 🔰", "panel_user")],
         [Markup.button.callback("➖➖➖➖➖➖➖➖➖➖", "none")],
 
@@ -101,12 +100,12 @@ const sendUserKeyboard = (ctx) => {
           ],
 
           [
-            { text: "📑 | مقاله یاب", callback_data: "none" },
-            { text: "🗂 | سورس یاب", callback_data: "none" },
-            { text: "📮| پکیج یاب", callback_data: "none" },
+            { text: "📑 | مقاله یاب", callback_data: "articleYab" },
+            { text: "🗂 | سورس یاب", callback_data: "sourceYab" },
+            { text: "📮| پکیج یاب", callback_data: "packageYab" },
           ],
 
-          [{ text: "💰 | شغل یاب", callback_data: "none" }],
+          [{ text: "💰 | شغل یاب", callback_data: "jobYab" }],
           [
             {
               text: "👨‍💻 | ارتباط با برنامه نویس",

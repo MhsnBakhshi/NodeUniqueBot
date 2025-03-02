@@ -35,8 +35,11 @@ const {
   findTeamMateFromUserProfileStack,
   findTeamMateFromUserRequstStack,
 } = require("./utils/actions");
+const { scraperNPMPackages } = require("./scraping/package-scrap");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
+
+const fs = require("fs");
 
 bot.use(async (ctx, next) => {
   await insertUser(ctx);
@@ -805,6 +808,89 @@ bot.action("user_request_stack", async (ctx) => {
   });
 });
 
+bot.action("packageYab", async (ctx) => {
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    `به بخش پکیج یاب خوش اومدی. \n برام keyword ارسال کن تا پکیج های مرتبط باهاش رو از سایت NPM برات پیدا کنم👇🏻`,
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+    }
+  );
+
+  await redis.setex(
+    `UserRequestPackage:ChatID:${ctx.callbackQuery.from.id}`,
+    120,
+    "WAITING_FOR_PACKAGE_KEYWORD"
+  );
+});
+
+bot.action("continue_scrap", async (ctx) => {
+  const packageData = await redis.get(
+    `UserRequestPackageContinue:CHATID${ctx.callbackQuery?.from.id}`
+  );
+
+  if (!JSON.parse(packageData)) {
+    return ctx.editMessageText("مجدد مراحل رو انجام بده. 💬", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔐 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+  }
+
+  const { packageKeyword, page, perPage } = JSON.parse(packageData);
+  await ctx.sendChatAction("typing");
+  await ctx.editMessageText(
+    "درحال استخراج 40 پکیج بعدی, ممکن است کمی طول بکشد .... ⏳"
+  );
+
+  const { totalPackagesFound, filePath } = await scraperNPMPackages(
+    packageKeyword,
+    page,
+    perPage
+  );
+  await ctx.sendChatAction("upload_document");
+
+  await ctx.telegram.sendDocument(ctx.chat.id, {
+    source: fs.createReadStream(filePath),
+    filename: `${packageKeyword}-packages.json`,
+  });
+  fs.unlinkSync(filePath);
+
+  await ctx.sendChatAction("typing");
+  await ctx.reply(
+    `40 پکیج دیگر استخراج شد از مجموع ${totalPackagesFound}.\nمیخوای ادامه بدی؟`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "⌛️ | ادامه استخراج", callback_data: "continue_scrap" }],
+          [{ text: "❌ | لغو", callback_data: "cancel_scrap" }],
+        ],
+      },
+    }
+  );
+  await redis.setex(
+    `UserRequestPackageContinue:CHATID${ctx.from.id}`,
+    120,
+    JSON.stringify({ packageKeyword, page, perPage })
+  );
+});
+
+bot.action("cancel_scrap", async (ctx) => {
+  await redis.del(`UserRequestPackage:ChatID:${ctx.callbackQuery?.from.id}`);
+  await redis.del(
+    `UserRequestPackageContinue:CHATID${ctx.callbackQuery?.from.id}`
+  );
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText("فرایند استخراج با موفقیت متوقف شد ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+});
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
@@ -840,6 +926,10 @@ bot.on("message", async (ctx) => {
 
   const userRequestStack = await redis.get(
     `UserRequestStack:ChatID:${ctx.from.id}`
+  );
+
+  const UserRequestPackageStep = await redis.get(
+    `UserRequestPackage:ChatID:${ctx.from.id}`
   );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
@@ -1239,6 +1329,44 @@ bot.on("message", async (ctx) => {
     await findTeamMateFromUserRequstStack(ctx, stack);
 
     await redis.del(`UserRequestStack:ChatID:${ctx.from.id}`);
+  }
+
+  if (UserRequestPackageStep === "WAITING_FOR_PACKAGE_KEYWORD") {
+    const packageKeyword = ctx.message.text;
+    await ctx.sendChatAction("typing");
+    await ctx.reply("درحال استخراج 40 پکیج اول, ممکن است کمی طول بکشد .... ⏳");
+
+    let page = 0;
+    let perPage = 40;
+    const { totalPackagesFound, filePath } = await scraperNPMPackages(
+      packageKeyword,
+      page,
+      perPage
+    );
+    await ctx.sendChatAction("upload_document");
+
+    await ctx.telegram.sendDocument(ctx.chat.id, {
+      source: fs.createReadStream(filePath),
+      filename: `${packageKeyword}-packages.json`,
+    });
+    fs.unlinkSync(filePath);
+    await ctx.sendChatAction("typing");
+    await ctx.reply(
+      `40 پکیج استخراج شد از مجموع ${totalPackagesFound}.\nمیخوای ادامه بدی؟`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "⌛️ | ادامه استخراج", callback_data: "continue_scrap" }],
+            [{ text: "❌ | لغو", callback_data: "cancel_scrap" }],
+          ],
+        },
+      }
+    );
+    await redis.setex(
+      `UserRequestPackageContinue:CHATID${ctx.from.id}`,
+      120,
+      JSON.stringify({ packageKeyword, page: page + 1, perPage })
+    );
   }
 });
 
