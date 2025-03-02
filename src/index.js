@@ -891,6 +891,25 @@ bot.action("cancel_scrap", async (ctx) => {
     },
   });
 });
+
+bot.action("articleYab", async (ctx) => {
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText(
+    "به بخش جذاب مقاله یاب خوش اومدی 😍\nیکی از سایت هایی که میخوای برات مقاله جمع آوری کنم رو انتخاب کن:",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "📥 | سایت Medium ", callback_data: "Medium" },
+            { text: "📩 | سایت Dev.to", callback_data: "DevTo" },
+          ],
+          [{ text: "🏷 | سایت ویرگول", callback_data: "VirGool" }],
+          [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+        ],
+      },
+    }
+  );
+});
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
