@@ -895,17 +895,53 @@ bot.action("cancel_scrap", async (ctx) => {
 bot.action("articleYab", async (ctx) => {
   ctx.sendChatAction("typing");
   return ctx.editMessageText(
-    "به بخش جذاب مقاله یاب خوش اومدی 😍\nیکی از سایت هایی که میخوای برات مقاله جمع آوری کنم رو انتخاب کن:",
+    "به بخش جذاب مقاله یاب خوش اومدی 😍\nیکی از بخش هایی که میخوای برات مقاله جمع آوری کنم رو انتخاب کن:",
     {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "📥 | سایت Medium ", callback_data: "Medium" },
+            {
+              text: "🔓 | آنلاک مقالات پرمیوم (Medium)",
+              callback_data: "OnlockMediumPermiumAerticle",
+            },
+          ],
+          [
+            { text: "🏷 | سایت ویرگول", callback_data: "VirGool" },
             { text: "📩 | سایت Dev.to", callback_data: "DevTo" },
           ],
-          [{ text: "🏷 | سایت ویرگول", callback_data: "VirGool" }],
+          [
+            {
+              text: "🔍 | جستجو براساس حوزه فعالیت شما",
+              callback_data: "StackSerachingArticle",
+            },
+          ],
+          [
+            {
+              text: "⚡️ | جستجو رندوم از بین سایت های معتبر",
+              callback_data: "RandomSerachingArticle",
+            },
+          ],
+
           [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
         ],
+      },
+    }
+  );
+});
+
+bot.action("DevTo", async (ctx) => {
+  ctx.sendChatAction("typing");
+  await redis.setex(
+    `UserRequestDevToArticleStep:CHARID:${ctx?.callbackQuery?.from?.id}`,
+    120,
+    "WAITING_FOR_ARTICLE_KEYWORD"
+  );
+
+  return ctx.editMessageText(
+    `${ctx.callbackQuery.from.first_name} عزیز.\n 👈🏻  برام چند کلید واژه انگلیسی ارسال کن تا برات مقاله هایی که مرتبط با این کلید واژه هستن رو پیدا کنم میتونی با ( , کاما چند کلید واژه ارسال کنی).\n 💡مثال: Nodejs, Express, MySQL`,
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
       },
     }
   );
@@ -949,6 +985,9 @@ bot.on("message", async (ctx) => {
 
   const UserRequestPackageStep = await redis.get(
     `UserRequestPackage:ChatID:${ctx.from.id}`
+  );
+  const UserRequestDevToArticleStep = await redis.get(
+    `UserRequestDevToArticleStep:CHARID:${ctx.from.id}`
   );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
@@ -1386,6 +1425,14 @@ bot.on("message", async (ctx) => {
       120,
       JSON.stringify({ packageKeyword, page: page + 1, perPage })
     );
+  }
+
+  if (UserRequestDevToArticleStep === "WAITING_FOR_ARTICLE_KEYWORD") {
+    const keywords = ctx.text.split(",").map((e) => e.trim());
+
+    // keywords.join("+")
+
+    await redis.del(`UserRequestDevToArticleStep:CHARID:${ctx.from.id}`);
   }
 });
 

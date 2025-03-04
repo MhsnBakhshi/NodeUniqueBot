@@ -58,6 +58,7 @@ scraperNPMPackages = async (packageName, pageSize, perPage) => {
     if (name && link) {
       packages.push({
         name,
+        installCommand: `npm i ${name}`,
         link: `https://www.npmjs.com${link}`,
         desc,
         totalDownloads,
@@ -72,7 +73,7 @@ scraperNPMPackages = async (packageName, pageSize, perPage) => {
   fs.writeFileSync(filePath, JSON.stringify(packages, null, 4), "utf-8");
 
   await browser.close();
-  return { totalPackagesFound, filePath};
+  return { totalPackagesFound, filePath };
 };
 
 module.exports = {
