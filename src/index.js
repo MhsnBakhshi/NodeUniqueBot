@@ -40,6 +40,7 @@ const { scraperNPMPackages } = require("./scraping/package-scrap");
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const fs = require("fs");
+const { scrapArticlesFromDevToWebsite } = require("./scraping/article-scrap");
 
 bot.use(async (ctx, next) => {
   await insertUser(ctx);
@@ -891,6 +892,18 @@ bot.action("cancel_scrap", async (ctx) => {
     },
   });
 });
+bot.action("cancel_scrap_article", async (ctx) => {
+  await redis.del(`UserKeywords:CHATID${ctx?.callbackQuery?.from.id}`);
+  await redis.del(
+    `UserRequestDevToArticleStep:CHARID:${ctx.callbackQuery?.from.id}`
+  );
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText("فرایند استخراج با موفقیت متوقف شد ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+});
 
 bot.action("articleYab", async (ctx) => {
   ctx.sendChatAction("typing");
@@ -946,6 +959,156 @@ bot.action("DevTo", async (ctx) => {
     }
   );
 });
+
+bot.action("MostRelevant", async (ctx) => {
+  try {
+    const keywords = await redis.get(
+      `UserKeywords:CHATID${ctx.callbackQuery?.from.id}`
+    );
+    if (!keywords) {
+      ctx.sendChatAction("typing");
+      return ctx.editMessageText(
+        "مدت زمان شما پایان رسیده مجدد مراحل رو انجام بدید! ❌",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+            ],
+          },
+        }
+      );
+    }
+
+    ctx.sendChatAction("typing");
+    ctx.editMessageText("درحال استخراج مقالات ممکن است کمی طول بکشد ... ⏳");
+
+    const { articlePath, articlesTotalCount } =
+      await scrapArticlesFromDevToWebsite(keywords, "MostRelevant");
+
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      `استخراج مقالات با موفقیت پایان رسید، حدود ${articlesTotalCount} مقاله یافت شد ✅  درحال ارسال فایل ...`
+    );
+
+    ctx.sendChatAction("upload_document");
+
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(articlePath),
+      filename: `${keywords}ArticlesDevto.json`,
+    });
+    fs.unlinkSync(articlePath);
+    ctx.reply("فرایند استخراج با موفقیت به پایان رسید ✔", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+    await redis.del(`UserKeywords:CHATID${ctx.callbackQuery?.from.id}`);
+  } catch (error) {
+    return ctx.reply("خطا هنگام استخراج !");
+  }
+});
+
+bot.action("Newest", async (ctx) => {
+  try {
+    const keywords = await redis.get(
+      `UserKeywords:CHATID${ctx.callbackQuery?.from.id}`
+    );
+    if (!keywords) {
+      ctx.sendChatAction("typing");
+      return ctx.editMessageText(
+        "مدت زمان شما پایان رسیده مجدد مراحل رو انجام بدید! ❌",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+            ],
+          },
+        }
+      );
+    }
+
+    ctx.sendChatAction("typing");
+    ctx.editMessageText("درحال استخراج مقالات ممکن است کمی طول بکشد ... ⏳");
+
+    const { articlePath, articlesTotalCount } =
+      await scrapArticlesFromDevToWebsite(keywords, "Newest");
+
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      `استخراج مقالات با موفقیت پایان رسید، حدود ${articlesTotalCount} مقاله یافت شد ✅  درحال ارسال فایل ...`
+    );
+
+    ctx.sendChatAction("upload_document");
+
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(articlePath),
+      filename: `${keywords}ArticlesDevto.json`,
+    });
+    fs.unlinkSync(articlePath);
+    ctx.reply("فرایند استخراج با موفقیت به پایان رسید ✔", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+    await redis.del(`UserKeywords:CHATID${ctx.callbackQuery?.from.id}`);
+  } catch (error) {
+    return ctx.reply("خطا هنگام استخراج !");
+  }
+});
+bot.action("Oldest", async (ctx) => {
+ try {
+    const keywords = await redis.get(
+      `UserKeywords:CHATID${ctx.callbackQuery?.from.id}`
+    );
+    if (!keywords) {
+      ctx.sendChatAction("typing");
+      return ctx.editMessageText(
+        "مدت زمان شما پایان رسیده مجدد مراحل رو انجام بدید! ❌",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+            ],
+          },
+        }
+      );
+    }
+
+    ctx.sendChatAction("typing");
+    ctx.editMessageText("درحال استخراج مقالات ممکن است کمی طول بکشد ... ⏳");
+
+    const { articlePath, articlesTotalCount } =
+      await scrapArticlesFromDevToWebsite(keywords, "Oldest");
+
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      `استخراج مقالات با موفقیت پایان رسید، حدود ${articlesTotalCount} مقاله یافت شد ✅  درحال ارسال فایل ...`
+    );
+
+    ctx.sendChatAction("upload_document");
+
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(articlePath),
+      filename: `${keywords}ArticlesDevto.json`,
+    });
+    fs.unlinkSync(articlePath);
+    ctx.reply("فرایند استخراج با موفقیت به پایان رسید ✔", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+    await redis.del(`UserKeywords:CHATID${ctx.callbackQuery?.from.id}`);
+  } catch (error) {
+    return ctx.reply("خطا هنگام استخراج !");
+  }
+});
+
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
@@ -1430,8 +1593,32 @@ bot.on("message", async (ctx) => {
   if (UserRequestDevToArticleStep === "WAITING_FOR_ARTICLE_KEYWORD") {
     const keywords = ctx.text.split(",").map((e) => e.trim());
 
-    // keywords.join("+")
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      "کلید واژه دریافت شد. میخوای بر چه اساسی برات جستجو رو انجام بدم؟\n👈🏻 انتخاب کن:",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "❌ | لغو", callback_data: "cancel_scrap_article" }],
+            [
+              {
+                text: "جستجو براساس مرتبط‌ترین | ✅",
+                callback_data: "MostRelevant",
+              },
+            ],
+            [{ text: "جستجو براساس جدیدترین | 🆕", callback_data: "Newest" }],
+            [{ text: "جستجو براساس قدیمی‌ترین | 🔎", callback_data: "Oldest" }],
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
 
+    await redis.setex(
+      `UserKeywords:CHATID${ctx.from.id}`,
+      120,
+      keywords.join("+")
+    );
     await redis.del(`UserRequestDevToArticleStep:CHARID:${ctx.from.id}`);
   }
 });
