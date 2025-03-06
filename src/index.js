@@ -40,7 +40,10 @@ const { scraperNPMPackages } = require("./scraping/package-scrap");
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const fs = require("fs");
-const { scrapArticlesFromDevToWebsite } = require("./scraping/article-scrap");
+const {
+  scrapArticlesFromDevToWebsite,
+  scrapArticlesFromVirgoolWebsite,
+} = require("./scraping/article-scrap");
 
 bot.use(async (ctx, next) => {
   await insertUser(ctx);
@@ -1060,7 +1063,7 @@ bot.action("Newest", async (ctx) => {
   }
 });
 bot.action("Oldest", async (ctx) => {
- try {
+  try {
     const keywords = await redis.get(
       `UserKeywords:CHATID${ctx.callbackQuery?.from.id}`
     );
@@ -1109,6 +1112,85 @@ bot.action("Oldest", async (ctx) => {
   }
 });
 
+bot.action("VirGool", async (ctx) => {
+  ctx.sendChatAction("typing");
+  await redis.setex(
+    `UserRequestVirgoolArticleStep:CHARID:${ctx?.callbackQuery?.from?.id}`,
+    120,
+    "WAITING_FOR_VIRGOOL_ARTICLE_KEYWORD"
+  );
+
+  return ctx.editMessageText(
+    `${ctx.callbackQuery.from.first_name} عزیز.\n 👈🏻  برام چند کلید واژه انگلیسی یا فارسی ارسال کن تا برات مقاله هایی که مرتبط با این کلید واژه هستن رو پیدا کنم میتونی با ( , کاما چند کلید واژه ارسال کنی).\n 💡مثال: Nodejs, Express, MySQL\n💡مثال فارسی: نودجی‌اس، جاوااسکریپت`,
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+    }
+  );
+});
+bot.action("cancel_virgool_scrap", async (ctx) => {
+  const articleData = await redis.get(
+    `UserKeywordsVirgool:CHATID${ctx.callbackQuery?.from?.id}`
+  );
+  const { virgoolArticlesPath } = JSON.parse(articleData);
+  fs.unlinkSync(virgoolArticlesPath);
+  await redis.del(`UserKeywordsVirgool:CHATID${ctx.callbackQuery?.from?.id}`);
+  await redis.del(
+    `UserRequestVirgoolArticleStep:CHARID:${ctx.callbackQuery?.from?.id}`
+  );
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText("فرایند استخراج با موفقیت متوقف شد ✔", {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+  });
+});
+
+bot.action("send_virgool_output", async (ctx) => {
+  try {
+    const articleData = await redis.get(
+      `UserKeywordsVirgool:CHATID${ctx.callbackQuery.from.id}`
+    );
+    const { keywords, virgoolArticlesPath } = JSON.parse(articleData);
+
+    if (!JSON.parse(articleData)) {
+      fs.unlinkSync(virgoolArticlesPath);
+      ctx.sendChatAction("typing");
+      return ctx.editMessageText("مجدد مراحل رو انجام بده. 💬", {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔐 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      });
+    }
+    ctx.sendChatAction("upload_document");
+    ctx.sendChatAction("typing");
+    ctx.reply("درحال ارسال فایل JSON ✅");
+
+    ctx.sendChatAction("upload_document");
+
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(virgoolArticlesPath),
+      filename: `${keywords}-ArticlesVirgool.json`,
+    });
+    fs.unlinkSync(virgoolArticlesPath);
+    ctx.sendChatAction("typing");
+    ctx.reply("فرایند استخراج با موفقیت به پایان رسید ✔", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+
+    await redis.del(`UserKeywordsVirgool:CHATID${ctx.callbackQuery.from.id}`);
+  } catch (error) {
+    ctx.reply("ارور هنگام ارسال فایل !!!!");
+  }
+});
+
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
@@ -1151,6 +1233,9 @@ bot.on("message", async (ctx) => {
   );
   const UserRequestDevToArticleStep = await redis.get(
     `UserRequestDevToArticleStep:CHARID:${ctx.from.id}`
+  );
+  const UserRequestVirgoolArticleStep = await redis.get(
+    `UserRequestVirgoolArticleStep:CHARID:${ctx.from.id}`
   );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
@@ -1620,6 +1705,37 @@ bot.on("message", async (ctx) => {
       keywords.join("+")
     );
     await redis.del(`UserRequestDevToArticleStep:CHARID:${ctx.from.id}`);
+  }
+
+  if (UserRequestVirgoolArticleStep === "WAITING_FOR_VIRGOOL_ARTICLE_KEYWORD") {
+    const keywords = ctx.text
+      .split(/[,،]/)
+      .map((e) => e.trim())
+      .join(" ");
+
+    ctx.sendChatAction("typing");
+    ctx.reply("درحال استخراج مقالات ممکن است کمی طول بکشد ... ⏳");
+
+    const { totalArticlesCount, virgoolArticlesPath } =
+      await scrapArticlesFromVirgoolWebsite(keywords, 10);
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      `${totalArticlesCount} مقاله با موفقیت از سایت ویرگول استخراج شد ✅, تنها 6 دقیقه فرصت داری فایل خروجی رو دریافت کنی\n👈🏻 برای دریافت رویه دکمه خروجی کلیک کن:`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "📥 | خروجی", callback_data: "send_virgool_output" }],
+            [{ text: "❌ | لغو", callback_data: "cancel_virgool_scrap" }],
+          ],
+        },
+      }
+    );
+    await redis.setex(
+      `UserKeywordsVirgool:CHATID${ctx.from.id}`,
+      400,
+      JSON.stringify({ keywords, virgoolArticlesPath })
+    );
+    await redis.del(`UserRequestVirgoolArticleStep:CHARID:${ctx.from.id}`);
   }
 });
 

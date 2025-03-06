@@ -96,6 +96,154 @@ const scrapArticlesFromDevToWebsite = async (keywords, sortBy) => {
   return { articlePath, articlesTotalCount: articles.length };
 };
 
+const scrapArticlesFromVirgoolWebsite = async (keywords, limit) => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      defaultViewport: null,
+    });
+
+    const page = await browser.newPage();
+
+    const url = `https://virgool.io/search/posts?q=${keywords}`;
+
+    await page.goto(url, { waitUntil: "networkidle2" });
+    await page.waitForSelector("div.app-layout-children article", {
+      timeout: 20000,
+    });
+
+    for (let i = 0; i < limit; i++) {
+      try {
+        const loadMoreButton = await page.$(
+          "div.app-layout-children button.css-adloc5"
+        );
+        if (!loadMoreButton) {
+          throw new Error("Button not found");
+        }
+
+        await loadMoreButton.evaluate((btn) => btn.scrollIntoView());
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const prevArticleCount = await page.$$eval(
+          "div.app-layout-children article",
+          (articles) => articles.length
+        );
+
+        await loadMoreButton.click();
+
+        await page.waitForFunction(
+          (prevCount) => {
+            return (
+              document.querySelectorAll("div.app-layout-children article")
+                .length > prevCount
+            );
+          },
+          {},
+          prevArticleCount
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch (err) {
+        throw new Error(err.message);
+      }
+    }
+
+    const content = await page.content();
+    const $ = cheerio.load(content);
+    const virgoolArticlesPath = `./src/scraping/${keywords}-VirgoolArticles.json`;
+
+    const articles = [];
+    await page.hover("div.app-layout-children button.direction-rtl");
+    await page.click("div.app-layout-children button.direction-rtl");
+    $("div.app-layout-children article").each((i, element) => {
+      const articleItem = $(element);
+
+      const authour = articleItem
+        .find("span.vrgl-typography-ellipsis a")
+        .text()
+        .trim();
+      const authourProfile = articleItem
+        .find("span.vrgl-typography-ellipsis a")
+        .attr("href")
+        ?.trim();
+      const title = articleItem
+        .find("h3.vrgl-typography-ellipsis")
+        .text()
+        .trim();
+      const shortDesc = articleItem
+        .find("span.vrgl-typography-ellipsis-multiple-line")
+        .text()
+        .trim();
+      const link = articleItem
+        .find("h3.vrgl-typography-ellipsis")
+        .parent("a")
+        .attr("href")
+        ?.trim();
+      const topic = articleItem
+        .find("span.tag_vrgl-tag__f6Xpt a")
+        .text()
+        .trim();
+
+      const readTime = articleItem
+        .find("footer span.color-gray-600")
+        .text()
+        .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+        .trim();
+      const likeCount = articleItem
+        .find("button[name='like']")
+        .next("span")
+        .text()
+        .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+        .trim();
+
+      const commentCount = articleItem
+        .find("a[href$='#--responses'] span")
+        .last()
+        .text()
+        .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+        .trim();
+
+      const createdTime = articleItem
+        .find("div.color-gray-700")
+        .first()
+        .text()
+        .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+        .trim();
+
+      if (title && link) {
+        articles.push({
+          authour,
+          authourProfile,
+          title,
+          shortDesc,
+          link,
+          topic,
+          readTime,
+          likeCount,
+          commentCount,
+          createdTime,
+        });
+      }
+    });
+
+    fs.writeFileSync(
+      virgoolArticlesPath,
+      JSON.stringify(articles, null, 4),
+      "utf-8"
+    );
+
+    await browser.close();
+    return {
+      virgoolArticlesPath,
+      totalArticlesCount: articles.length,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   scrapArticlesFromDevToWebsite,
+  scrapArticlesFromVirgoolWebsite,
 };
