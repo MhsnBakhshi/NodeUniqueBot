@@ -1191,6 +1191,25 @@ bot.action("send_virgool_output", async (ctx) => {
   }
 });
 
+bot.action("OnlockMediumPermiumAerticle", async (ctx) => {
+  ctx.sendChatAction("typing");
+  [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+    ctx.editMessageText(
+      "خب حالا لینک مقاله رو برام ارسال کن تا برات آنلاک کنم 😎",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  await redis.setex(
+    `waitingForUserMediumLink:CHATID${ctx.callbackQuery.from.id}`,
+    120,
+    "WAITING_FOR_MEDIUM_LINK"
+  );
+});
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
@@ -1236,6 +1255,9 @@ bot.on("message", async (ctx) => {
   );
   const UserRequestVirgoolArticleStep = await redis.get(
     `UserRequestVirgoolArticleStep:CHARID:${ctx.from.id}`
+  );
+  const waitingForUserMediumLink = await redis.get(
+    `waitingForUserMediumLink:CHATID${ctx.from.id}`
   );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
@@ -1736,6 +1758,36 @@ bot.on("message", async (ctx) => {
       JSON.stringify({ keywords, virgoolArticlesPath })
     );
     await redis.del(`UserRequestVirgoolArticleStep:CHARID:${ctx.from.id}`);
+  }
+
+  if (waitingForUserMediumLink === "WAITING_FOR_MEDIUM_LINK") {
+    let link = ctx.text;
+
+    if (link.startsWith("https://medium.com/")) {
+      link = link.replace("https://medium.com/", "https://readmedium.com/");
+
+      ctx.sendChatAction("typing");
+      ctx.reply(link);
+      await redis.del(`waitingForUserMediumLink:CHATID${ctx.from.id}`);
+
+      ctx.reply("با موفقیت آنلاک شد از لینک بالایی میتونی مقاله رو بخونی  ✔", {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      });
+      return;
+    } else {
+      await redis.del(`waitingForUserMediumLink:CHATID${ctx.from.id}`);
+      return ctx.reply("لینک ارسالی معتبر نیست دوباره مراحل رو انجام بده 🚫", {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      });
+    }
   }
 });
 
