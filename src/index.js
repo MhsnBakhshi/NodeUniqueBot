@@ -1165,6 +1165,7 @@ bot.action("send_virgool_output", async (ctx) => {
         },
       });
     }
+    ctx.deleteMessage();
     ctx.sendChatAction("upload_document");
     ctx.sendChatAction("typing");
     ctx.reply("درحال ارسال فایل JSON ✅");
@@ -1210,6 +1211,134 @@ bot.action("OnlockMediumPermiumAerticle", async (ctx) => {
     "WAITING_FOR_MEDIUM_LINK"
   );
 });
+
+bot.action("StackSerachingArticle", async (ctx) => {
+  const chatID = ctx.callbackQuery.from.id;
+  const user = await findByChatID(chatID);
+
+  const userStack = await findUserStacks(user.id);
+
+  if (userStack.length === 0) {
+    return ctx.editMessageText(
+      `👈🏻 | برای استفاده از این بخش باید پروفایل خودتو کامل کنی ${ctx.callbackQuery.from.first_name} عزیز:`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "⏮  | رفتن به پروفایل", callback_data: "myProfile" }],
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText(
+    "👈🏻 میخوای طبق کدوم سایتی برات مقاله جمع کنم؟ \nانتخاب کن: 👇🏻",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "⚡️ | جستجو رندوم از بین سایت های معتبر",
+              callback_data: "StackSerachingArticleRandom",
+            },
+          ],
+
+          [
+            {
+              text: "🏷 | سایت ویرگول",
+              callback_data: "StackSerachingArticleVirGool",
+            },
+            {
+              text: "📩 | سایت Dev.to",
+              callback_data: "StackSerachingArticleDevTo",
+            },
+          ],
+          [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+        ],
+      },
+    }
+  );
+});
+
+bot.action("StackSerachingArticleVirGool", async (ctx) => {
+  const chatID = ctx.callbackQuery.from.id;
+  const user = await findByChatID(chatID);
+
+  const userStack = await findUserStacks(user.id);
+
+  const combinedStacksToOneArray = userStack.flatMap((stack) => stack.fields);
+
+  const virgoolKeywords = combinedStacksToOneArray.join(" ");
+  ctx.deleteMessage();
+  ctx.sendChatAction("typing");
+  ctx.reply("درحال استخراج مقالات ممکن است کمی طول بکشد ... ⏳");
+
+  const { totalArticlesCount, virgoolArticlesPath } =
+    await scrapArticlesFromVirgoolWebsite(virgoolKeywords, 10);
+  ctx.sendChatAction("typing");
+  ctx.reply(
+    `${totalArticlesCount} مقاله با موفقیت از سایت ویرگول استخراج شد ✅, تنها 6 دقیقه فرصت داری فایل خروجی رو دریافت کنی\n👈🏻 برای دریافت رویه دکمه خروجی کلیک کن:`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "📥 | خروجی", callback_data: "send_virgool_output" }],
+          [{ text: "❌ | لغو", callback_data: "cancel_virgool_scrap" }],
+        ],
+      },
+    }
+  );
+
+  await redis.setex(
+    `UserKeywordsVirgool:CHATID${ctx.callbackQuery.from.id}`,
+    400,
+    JSON.stringify({ keywords: virgoolKeywords, virgoolArticlesPath })
+  );
+});
+bot.action("StackSerachingArticleDevTo", async (ctx) => {
+  const chatID = ctx.callbackQuery.from.id;
+  const user = await findByChatID(chatID);
+
+  const userStack = await findUserStacks(user.id);
+
+  const combinedStacksToOneArray = userStack.flatMap((stack) => stack.fields);
+
+  const devToKeywords = combinedStacksToOneArray.join("+");
+
+  ctx.deleteMessage();
+  ctx.sendChatAction("typing");
+  ctx.reply("درحال استخراج مقالات ممکن است کمی طول بکشد ... ⏳");
+
+  const { articlePath, articlesTotalCount } =
+    await scrapArticlesFromDevToWebsite(devToKeywords, "MostRelevant");
+
+  ctx.sendChatAction("typing");
+  ctx.reply(
+    `استخراج مقالات با موفقیت پایان رسید، حدود ${articlesTotalCount} مقاله یافت شد ✅  درحال ارسال فایل ...`
+  );
+
+  ctx.sendChatAction("upload_document");
+
+  await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+    source: fs.createReadStream(articlePath),
+    filename: `${devToKeywords}ArticlesDevto.json`,
+  });
+  fs.unlinkSync(articlePath);
+  ctx.reply("فرایند استخراج با موفقیت به پایان رسید ✔", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+      ],
+    },
+  });
+});
+
+// TODO
+bot.action("RandomSerachingArticle", async (ctx) => {});
+// TODO
+bot.action("StackSerachingArticleRandom", async (ctx) => {});
+
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
