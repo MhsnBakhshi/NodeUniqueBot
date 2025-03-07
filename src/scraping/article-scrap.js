@@ -114,39 +114,35 @@ const scrapArticlesFromVirgoolWebsite = async (keywords, limit) => {
     });
 
     for (let i = 0; i < limit; i++) {
-      try {
-        const loadMoreButton = await page.$(
-          "div.app-layout-children button.css-adloc5"
-        );
-        if (!loadMoreButton) {
-          throw new Error("Button not found");
-        }
-
-        await loadMoreButton.evaluate((btn) => btn.scrollIntoView());
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        const prevArticleCount = await page.$$eval(
-          "div.app-layout-children article",
-          (articles) => articles.length
-        );
-
-        await loadMoreButton.click();
-
-        await page.waitForFunction(
-          (prevCount) => {
-            return (
-              document.querySelectorAll("div.app-layout-children article")
-                .length > prevCount
-            );
-          },
-          {},
-          prevArticleCount
-        );
-
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (err) {
-        throw new Error(err.message);
+      const loadMoreButton = await page.$(
+        "div.app-layout-children button.css-adloc5"
+      );
+      if (!loadMoreButton) {
+        break;
       }
+
+      await loadMoreButton.evaluate((btn) => btn.scrollIntoView());
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const prevArticleCount = await page.$$eval(
+        "div.app-layout-children article",
+        (articles) => articles.length
+      );
+
+      await loadMoreButton.click();
+
+      await page.waitForFunction(
+        (prevCount) => {
+          return (
+            document.querySelectorAll("div.app-layout-children article")
+              .length > prevCount
+          );
+        },
+        {},
+        prevArticleCount
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     const content = await page.content();
@@ -239,10 +235,11 @@ const scrapArticlesFromVirgoolWebsite = async (keywords, limit) => {
       totalArticlesCount: articles.length,
     };
   } catch (error) {
-    throw error;
+    console.error("Error in loading more articles:", error.message);
   }
 };
 
+const scrapSerachingArticleRandomFromWebsites = async () => {};
 module.exports = {
   scrapArticlesFromDevToWebsite,
   scrapArticlesFromVirgoolWebsite,

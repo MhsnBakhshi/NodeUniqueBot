@@ -94,6 +94,7 @@ const sendUserKeyboard = (ctx) => {
       reply_markup: {
         inline_keyboard: [
           [{ text: "🔙 | بازگشت به منو", callback_data: "backMainMenue" }],
+          [{ text: "🐈 | پروژه های Open Source گیتهاب", callback_data: "gitHubOpenSourceProjects" }],
           [
             { text: "👤 | پروفایل", callback_data: "myProfile" },
             { text: "🫂 | هم تیمی یاب", callback_data: "team_mate" },
