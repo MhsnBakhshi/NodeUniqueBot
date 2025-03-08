@@ -1,7 +1,9 @@
-const puppeteer = require("puppeteer-core");
+const puppeteer = require("puppeteer-extra");
 const cheerio = require("cheerio");
 const fs = require("fs");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
+puppeteer.use(StealthPlugin());
 const scrapArticlesFromDevToWebsite = async (keywords, sortBy) => {
   const browser = await puppeteer.launch({
     headless: true,
@@ -239,8 +241,188 @@ const scrapArticlesFromVirgoolWebsite = async (keywords, limit) => {
   }
 };
 
-const scrapSerachingArticleRandomFromWebsites = async () => {};
+const scrapSerachingArticleFromFreeCodeCamp = async (
+  keywords,
+  limit,
+  articlePath
+) => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      defaultViewport: null,
+    });
+
+    const page = await browser.newPage();
+
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
+    );
+
+    const url = `https://www.freecodecamp.org/news/tag/${keywords}/`;
+
+    await page.goto(url, { waitUntil: "networkidle2" });
+
+    await page.waitForSelector("section.post-feed article.post-card", {
+      timeout: 60000,
+    });
+
+    let lastHeight = await page.evaluate(() => document.body.scrollHeight);
+    let clickCount = 0;
+
+    while (clickCount < limit) {
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      let newHeight = await page.evaluate(() => document.body.scrollHeight);
+
+      if (newHeight === lastHeight) {
+        break;
+      }
+
+      lastHeight = newHeight;
+
+      const loadMoreExists = await page.$(
+        "div.read-more-row button#readMoreBtn"
+      );
+      if (loadMoreExists) {
+        await page.waitForSelector("div.read-more-row button#readMoreBtn", {
+          visible: true,
+          timeout: 10000,
+        });
+        await page.click("div.read-more-row button#readMoreBtn");
+        clickCount++;
+        break;
+      }
+    }
+
+    const content = await page.content();
+    const $ = cheerio.load(content);
+    const articles = [];
+
+    $("section.post-feed article.post-card").each((i, element) => {
+      const articleItem = $(element);
+
+      const title = articleItem.find("h2.post-card-title a").text().trim();
+      const link = articleItem
+        .find("h2.post-card-title a")
+        .attr("href")
+        ?.trim();
+      const authour = articleItem.find("a.meta-item").text().trim();
+      const authourProfile = articleItem
+        .find("a.meta-item")
+        .attr("href")
+        ?.trim();
+      const tagName = articleItem.find("span.post-card-tags a").text().trim();
+      const tagLink = articleItem
+        .find("span.post-card-tags a")
+        .attr("href")
+        ?.trim();
+      const publishedAt = articleItem.find("time.meta-item").text().trim();
+
+      if (link && title) {
+        articles.push({
+          title,
+          link: `https://www.freecodecamp.org${link}`,
+          tagName,
+          tagLink: `https://www.freecodecamp.org${tagLink}`,
+          authour: authour ?? null,
+          authourProfile:
+            `https://www.freecodecamp.org${authourProfile}` ?? null,
+          publishedAt: publishedAt ?? null,
+        });
+      }
+    });
+
+    let existingArticles = [];
+    if (fs.existsSync(articlePath)) {
+      const fileContent = fs.readFileSync(articlePath, "utf-8");
+      existingArticles = JSON.parse(fileContent);
+    }
+
+    existingArticles.push(...articles);
+
+    fs.writeFileSync(
+      articlePath,
+      JSON.stringify(existingArticles, null, 4),
+      "utf-8"
+    );
+
+    await browser.close();
+    return {
+      freecodecampArticlesLength: articles.length ?? 0,
+    };
+  } catch (error) {
+    console.error("Error in loading more articles:", error.message);
+    return {
+      freecodecampArticlesLength: 0,
+    };
+  }
+};
+const scrapArticlesFromBacancyWebsite = async (keywords, articlePath) => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      defaultViewport: null,
+    });
+
+    const page = await browser.newPage();
+
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
+    );
+
+    const url = `https://www.bacancytechnology.com/blog/?s=${keywords}`;
+
+    await page.goto(url, { waitUntil: "networkidle2" });
+
+    await page.waitForSelector("div.row.gy-4 div.col-lg-4.col-md-6", {
+      timeout: 40000,
+    });
+
+    const content = await page.content();
+    const $ = cheerio.load(content);
+
+    const articles = [];
+
+    $("div.row.gy-4 div.col-lg-4.col-md-6").each((i, element) => {
+      const articleItem = $(element);
+
+      const title = articleItem.find("div.blog-tital").text().trim();
+      const link = articleItem.find("div.blog-box a").attr("href")?.trim();
+
+      const publishedAt = articleItem
+        .find("span.date.pr-2.text-primary")
+        .text()
+        .trim();
+
+      if (link && title) {
+        articles.push({
+          title,
+          link,
+          publishedAt,
+        });
+      }
+    });
+
+    fs.writeFileSync(articlePath, JSON.stringify(articles, null, 4), "utf-8");
+
+    await browser.close();
+    return {
+      bacancytechnologyArticlesLength: articles.length ?? 0,
+    };
+  } catch (error) {
+    console.error("Error in loading more articles:", error.message);
+    return {
+      bacancytechnologyArticlesLength: 0,
+    };
+  }
+};
+
 module.exports = {
   scrapArticlesFromDevToWebsite,
   scrapArticlesFromVirgoolWebsite,
+  scrapArticlesFromBacancyWebsite,
+  scrapSerachingArticleFromFreeCodeCamp,
 };

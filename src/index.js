@@ -43,6 +43,8 @@ const fs = require("fs");
 const {
   scrapArticlesFromDevToWebsite,
   scrapArticlesFromVirgoolWebsite,
+  scrapArticlesFromBacancyWebsite,
+  scrapSerachingArticleFromFreeCodeCamp,
 } = require("./scraping/article-scrap");
 
 bot.use(async (ctx, next) => {
@@ -1240,13 +1242,6 @@ bot.action("StackSerachingArticle", async (ctx) => {
         inline_keyboard: [
           [
             {
-              text: "⚡️ | جستجو رندوم از بین سایت های معتبر",
-              callback_data: "StackSerachingArticleRandom",
-            },
-          ],
-
-          [
-            {
               text: "🏷 | سایت ویرگول",
               callback_data: "StackSerachingArticleVirGool",
             },
@@ -1334,10 +1329,25 @@ bot.action("StackSerachingArticleDevTo", async (ctx) => {
   });
 });
 
-// TODO
-bot.action("RandomSerachingArticle", async (ctx) => {});
-// TODO
-bot.action("StackSerachingArticleRandom", async (ctx) => {});
+bot.action("RandomSerachingArticle", async (ctx) => {
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "به بخش سرچ مقاله بر اساس سایت رندوم خوش اومدی 🌹. لطفا کلید واژه انگلیسی برام ارسال کن تا سرچ رو شروع کنم.\n 💡مثال: Nodejs, Express, MySQL",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    }
+  );
+
+  return redis.setex(
+    `UserRandomKeywordsStep:CHATID${ctx.callbackQuery.from.id}`,
+    120,
+    "WAITING_FOR_RANDOM_KEYWORD"
+  );
+});
 
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
@@ -1387,6 +1397,10 @@ bot.on("message", async (ctx) => {
   );
   const waitingForUserMediumLink = await redis.get(
     `waitingForUserMediumLink:CHATID${ctx.from.id}`
+  );
+
+  const UserRandomKeywordsStep = await redis.get(
+    `UserRandomKeywordsStep:CHATID${ctx.from.id}`
   );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
@@ -1917,6 +1931,54 @@ bot.on("message", async (ctx) => {
         },
       });
     }
+  }
+
+  if (UserRandomKeywordsStep === "WAITING_FOR_RANDOM_KEYWORD") {
+    const keywords = ctx.text
+      .toLocaleLowerCase()
+      .split(",")
+      .map((e) => e.trim());
+    const articlePath = `./src/scraping/${keywords.join(
+      " "
+    )}-RandomArticles.json`;
+
+    ctx.sendChatAction("typing");
+
+    ctx.reply(
+      "کلید واژه‌ با موفقیت دریافت شد، در حال جستجو مقالات ممکن است کمی طول بکشد. ⌛️"
+    );
+
+    const { bacancytechnologyArticlesLength } =
+      await scrapArticlesFromBacancyWebsite(keywords.join(" "), articlePath);
+    const { freecodecampArticlesLength } =
+      await scrapSerachingArticleFromFreeCodeCamp(
+        keywords.join(" "),
+        2,
+        articlePath
+      );
+
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      `${
+        freecodecampArticlesLength + bacancytechnologyArticlesLength
+      } مقاله برات جمع کردم، درحال ارسال فایل JSON 😎`
+    );
+
+    await ctx.sendChatAction("upload_document");
+    await ctx.telegram.sendDocument(ctx.chat.id, {
+      source: fs.createReadStream(articlePath),
+      filename: `${keywords.join(" ")}-RandomArticles.json`,
+    });
+    fs.unlinkSync(articlePath);
+    await ctx.sendChatAction("typing");
+    ctx.reply("فرایند استخراج با موفقیت به پایان رسید ✔", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+    await redis.del(`UserRandomKeywordsStep:CHATID${ctx.from.id}`);
   }
 });
 

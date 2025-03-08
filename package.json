@@ -30,6 +30,8 @@
     "nodemon": "^3.1.9",
     "prisma": "^6.2.1",
     "puppeteer-core": "^24.3.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "telegraf": "^4.16.3"
   }
 }
