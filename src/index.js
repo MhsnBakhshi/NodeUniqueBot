@@ -46,6 +46,7 @@ const {
   scrapArticlesFromBacancyWebsite,
   scrapSerachingArticleFromFreeCodeCamp,
 } = require("./scraping/article-scrap");
+const { scrapSourceCodeFromGitHub } = require("./scraping/source-scrap");
 
 bot.use(async (ctx, next) => {
   await insertUser(ctx);
@@ -1335,9 +1336,7 @@ bot.action("RandomSerachingArticle", async (ctx) => {
     "به بخش سرچ مقاله بر اساس سایت رندوم خوش اومدی 🌹. لطفا کلید واژه انگلیسی برام ارسال کن تا سرچ رو شروع کنم.\n 💡مثال: Nodejs, Express, MySQL",
     {
       reply_markup: {
-        inline_keyboard: [
-          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
-        ],
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
       },
     }
   );
@@ -1347,6 +1346,668 @@ bot.action("RandomSerachingArticle", async (ctx) => {
     120,
     "WAITING_FOR_RANDOM_KEYWORD"
   );
+});
+
+bot.action("sourceYab", async (ctx) => {
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText(
+    "به بخش فوق‌العاده جذاب سورس یاب خوش اومدی 🤩.\n👈🏻 تو این بخش میتونی راجب حوزه فعالیتت و هر تکنولوژی نمونه کد از گیت هاب به راحتی پیدا کنی.\n👇🏻 یکی از بخش های زیر رو انتخاب کن: ",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "🚀 | جستجو بر اساس کلید واژه درخواستی",
+              callback_data: "sourceYabFromUserKeyword",
+            },
+          ],
+          [
+            {
+              text: "👨‍💻 | جستجو بر اساس حوزه فعالیتت",
+              callback_data: "sourceYabFromUserStack",
+            },
+          ],
+          [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+        ],
+      },
+    }
+  );
+});
+
+bot.action("sourceYabFromUserKeyword", async (ctx) => {
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "👈🏻 | برام یک یا چند کلید واژه ارسال کن تا طبق اون سرچ رو انجام بدم. میتونی با کاما (,) کلید واژه هارو جدا کنی.\n💡| مثال: nodejs, express, mongodb",
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+    }
+  );
+  return redis.setex(
+    `UserRequestSource:CHATID${ctx.callbackQuery.from.id}`,
+    120,
+    "WAITING_FOR_SOURCE_KEYWORD"
+  );
+});
+
+bot.action("github_cancell_scraping", async (ctx) => {
+  await redis.del(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery?.from?.id}`
+  );
+  await redis.del(`UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`);
+
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText(
+    "فرایند استخراج با موفقیت لغو و کلید واژه حذف شد ✅",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    }
+  );
+});
+
+bot.action("github_sortBY_best_match", async (ctx) => {
+  const keywords = await redis.get(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery?.from?.id}`
+  );
+  if (!keywords) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "مدت زمان شما به پایان رسیده مجدد تلاش فرمایید. 🚫",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "⏳ درحال استخراج سورس های مورد نظر، ممکن است کمی طول بکشد. ⌛️"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  let perPage = 1;
+  const { count, path } = await scrapSourceCodeFromGitHub(
+    keywords,
+    perPage,
+    "BestMatch"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  ctx.sendChatAction("upload_document");
+  await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+    source: fs.createReadStream(path),
+    filename: `${keywords}-BestMatchSources.json`,
+  });
+  fs.unlinkSync(path);
+
+  ctx.sendChatAction("typing");
+  ctx.reply(
+    `استخراج انجام شد و ${count} سورس یافت شد ✅\n👇🏻 | دوست داری ادامه بدیم به استخراج؟`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "⌛️ | ادامه استخراج",
+              callback_data: "continue_scrap_source_github",
+            },
+          ],
+          [
+            {
+              text: "❌ | لغو",
+              callback_data: "github_cancell_scraping",
+            },
+          ],
+        ],
+      },
+    }
+  );
+
+  await redis.setex(
+    `UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`,
+    200,
+    JSON.stringify({
+      perPage: perPage + 1,
+      keywords,
+      sortBY: "BestMatch",
+    })
+  );
+
+  await redis.del(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery.from.id}`
+  );
+});
+
+bot.action("github_sortBY_most_stars", async (ctx) => {
+  const keywords = await redis.get(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery?.from?.id}`
+  );
+  if (!keywords) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "مدت زمان شما به پایان رسیده مجدد تلاش فرمایید. 🚫",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "⏳ درحال استخراج سورس های مورد نظر، ممکن است کمی طول بکشد. ⌛️"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  let perPage = 1;
+  const { count, path } = await scrapSourceCodeFromGitHub(
+    keywords,
+    perPage,
+    "MostStars"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  ctx.sendChatAction("upload_document");
+  await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+    source: fs.createReadStream(path),
+    filename: `${keywords}-MostStarsSources.json`,
+  });
+  fs.unlinkSync(path);
+
+  ctx.sendChatAction("typing");
+  ctx.reply(
+    `استخراج انجام شد و ${count} سورس یافت شد ✅\n👇🏻 | دوست داری ادامه بدیم به استخراج؟`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "⌛️ | ادامه استخراج",
+              callback_data: "continue_scrap_source_github",
+            },
+          ],
+          [
+            {
+              text: "❌ | لغو",
+              callback_data: "github_cancell_scraping",
+            },
+          ],
+        ],
+      },
+    }
+  );
+
+  await redis.setex(
+    `UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`,
+    200,
+    JSON.stringify({
+      perPage: perPage + 1,
+      keywords,
+      sortBY: "MostStars",
+    })
+  );
+
+  await redis.del(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery.from.id}`
+  );
+});
+
+bot.action("github_sortBY_fewest_stars", async (ctx) => {
+  const keywords = await redis.get(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery?.from?.id}`
+  );
+  if (!keywords) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "مدت زمان شما به پایان رسیده مجدد تلاش فرمایید. 🚫",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "⏳ درحال استخراج سورس های مورد نظر، ممکن است کمی طول بکشد. ⌛️"
+  );
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  let perPage = 1;
+  const { count, path } = await scrapSourceCodeFromGitHub(
+    keywords,
+    perPage,
+    "FewestStars"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  ctx.sendChatAction("upload_document");
+  await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+    source: fs.createReadStream(path),
+    filename: `${keywords}-FewestStarsSources.json`,
+  });
+  fs.unlinkSync(path);
+
+  ctx.sendChatAction("typing");
+  ctx.reply(
+    `استخراج انجام شد و ${count} سورس یافت شد ✅\n👇🏻 | دوست داری ادامه بدیم به استخراج؟`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "⌛️ | ادامه استخراج",
+              callback_data: "continue_scrap_source_github",
+            },
+          ],
+          [
+            {
+              text: "❌ | لغو",
+              callback_data: "github_cancell_scraping",
+            },
+          ],
+        ],
+      },
+    }
+  );
+
+  await redis.setex(
+    `UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`,
+    200,
+    JSON.stringify({
+      perPage: perPage + 1,
+      keywords,
+      sortBY: "FewestStars",
+    })
+  );
+
+  await redis.del(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery.from.id}`
+  );
+});
+
+bot.action("github_sortBY_most_forks", async (ctx) => {
+  const keywords = await redis.get(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery?.from?.id}`
+  );
+  if (!keywords) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "مدت زمان شما به پایان رسیده مجدد تلاش فرمایید. 🚫",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "⏳ درحال استخراج سورس های مورد نظر، ممکن است کمی طول بکشد. ⌛️"
+  );
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  let perPage = 1;
+  const { count, path } = await scrapSourceCodeFromGitHub(
+    keywords,
+    perPage,
+    "MostForks"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  ctx.sendChatAction("upload_document");
+  await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+    source: fs.createReadStream(path),
+    filename: `${keywords}-MostForksSources.json`,
+  });
+  fs.unlinkSync(path);
+
+  ctx.sendChatAction("typing");
+  ctx.reply(
+    `استخراج انجام شد و ${count} سورس یافت شد ✅\n👇🏻 | دوست داری ادامه بدیم به استخراج؟`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "⌛️ | ادامه استخراج",
+              callback_data: "continue_scrap_source_github",
+            },
+          ],
+          [
+            {
+              text: "❌ | لغو",
+              callback_data: "github_cancell_scraping",
+            },
+          ],
+        ],
+      },
+    }
+  );
+
+  await redis.setex(
+    `UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`,
+    200,
+    JSON.stringify({
+      perPage: perPage + 1,
+      keywords,
+      sortBY: "MostForks",
+    })
+  );
+
+  await redis.del(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery.from.id}`
+  );
+});
+
+bot.action("github_sortBY_fewest_forks", async (ctx) => {
+  const keywords = await redis.get(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery?.from?.id}`
+  );
+  if (!keywords) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "مدت زمان شما به پایان رسیده مجدد تلاش فرمایید. 🚫",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "⏳ درحال استخراج سورس های مورد نظر، ممکن است کمی طول بکشد. ⌛️"
+  );
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  let perPage = 1;
+  const { count, path } = await scrapSourceCodeFromGitHub(
+    keywords,
+    perPage,
+    "FewestForks"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  ctx.sendChatAction("upload_document");
+  await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+    source: fs.createReadStream(path),
+    filename: `${keywords}-FewestForksSources.json`,
+  });
+  fs.unlinkSync(path);
+
+  ctx.sendChatAction("typing");
+  ctx.reply(
+    `استخراج انجام شد و ${count} سورس یافت شد ✅\n👇🏻 | دوست داری ادامه بدیم به استخراج؟`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "⌛️ | ادامه استخراج",
+              callback_data: "continue_scrap_source_github",
+            },
+          ],
+          [
+            {
+              text: "❌ | لغو",
+              callback_data: "github_cancell_scraping",
+            },
+          ],
+        ],
+      },
+    }
+  );
+
+  await redis.setex(
+    `UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`,
+    200,
+    JSON.stringify({
+      perPage: perPage + 1,
+      keywords,
+      sortBY: "FewestForks",
+    })
+  );
+
+  await redis.del(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery.from.id}`
+  );
+});
+
+bot.action("github_sortBY_last_recentrly_updated", async (ctx) => {
+  const keywords = await redis.get(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery?.from?.id}`
+  );
+  if (!keywords) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "مدت زمان شما به پایان رسیده مجدد تلاش فرمایید. 🚫",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "⏳ درحال استخراج سورس های مورد نظر، ممکن است کمی طول بکشد. ⌛️"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  let perPage = 1;
+  const { count, path } = await scrapSourceCodeFromGitHub(
+    keywords,
+    perPage,
+    "lastRecentlyUpdated"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  ctx.sendChatAction("upload_document");
+  await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+    source: fs.createReadStream(path),
+    filename: `${keywords}-lastRecentlyUpdatedSources.json`,
+  });
+  fs.unlinkSync(path);
+
+  ctx.sendChatAction("typing");
+  ctx.reply(
+    `استخراج انجام شد و ${count} سورس یافت شد ✅\n👇🏻 | دوست داری ادامه بدیم به استخراج؟`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "⌛️ | ادامه استخراج",
+              callback_data: "continue_scrap_source_github",
+            },
+          ],
+          [
+            {
+              text: "❌ | لغو",
+              callback_data: "github_cancell_scraping",
+            },
+          ],
+        ],
+      },
+    }
+  );
+
+  await redis.setex(
+    `UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`,
+    200,
+    JSON.stringify({
+      perPage: perPage + 1,
+      keywords,
+      sortBY: "lastRecentlyUpdated",
+    })
+  );
+
+  await redis.del(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery.from.id}`
+  );
+});
+
+bot.action("github_sortBY_recentrly_updated", async (ctx) => {
+  const keywords = await redis.get(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery?.from?.id}`
+  );
+  if (!keywords) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "مدت زمان شما به پایان رسیده مجدد تلاش فرمایید. 🚫",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "⏳ درحال استخراج سورس های مورد نظر، ممکن است کمی طول بکشد. ⌛️"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  let perPage = 1;
+  const { count, path } = await scrapSourceCodeFromGitHub(
+    keywords,
+    perPage,
+    "recentlyUpdated"
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  ctx.sendChatAction("upload_document");
+  await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+    source: fs.createReadStream(path),
+    filename: `${keywords}-recentlyUpdatedSources.json`,
+  });
+  fs.unlinkSync(path);
+
+  ctx.sendChatAction("typing");
+  ctx.reply(
+    `استخراج انجام شد و ${count} سورس یافت شد ✅\n👇🏻 | دوست داری ادامه بدیم به استخراج؟`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "⌛️ | ادامه استخراج",
+              callback_data: "continue_scrap_source_github",
+            },
+          ],
+          [
+            {
+              text: "❌ | لغو",
+              callback_data: "github_cancell_scraping",
+            },
+          ],
+        ],
+      },
+    }
+  );
+
+  await redis.setex(
+    `UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`,
+    200,
+    JSON.stringify({
+      perPage: perPage + 1,
+      keywords,
+      sortBY: "recentlyUpdated",
+    })
+  );
+
+  await redis.del(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery.from.id}`
+  );
+});
+
+bot.action("continue_scrap_source_github", async (ctx) => {
+  const data = await redis.get(
+    `UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`
+  );
+
+  if (!JSON.parse(data)) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText("مجدد مراحل رو انجام بده. 💬", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔐 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+  }
+
+  const { perPage, keywords, sortBY } = JSON.parse(data);
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText("⏳ درحال ادامه استخراج ، ممکن است کمی طول بکشد ⌛️");
+
+  const { count, path } = await scrapSourceCodeFromGitHub(
+    keywords,
+    perPage,
+    sortBY
+  );
+
+  ctx.sendChatAction("upload_document");
+  await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+    source: fs.createReadStream(path),
+    filename: `${keywords}-BestMatchSources.json`,
+  });
+  fs.unlinkSync(path);
+
+  ctx.sendChatAction("typing");
+  ctx.reply(`${count} سورس دیگر با موفقیت یافت و ارسال شد، میخوای ادامه بدی؟`, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "⌛️ | ادامه استخراج",
+            callback_data: "continue_scrap_source_github",
+          },
+        ],
+        [
+          {
+            text: "❌ | لغو",
+            callback_data: "github_cancell_scraping",
+          },
+        ],
+      ],
+    },
+  });
+
+  const TTLRedisKey = `UserWantToContinue:CHATID${ctx.callbackQuery.from.id}`;
+  const TTLRedisTime = await redis.ttl(TTLRedisKey);
+  await redis.expire(TTLRedisKey, TTLRedisTime + 200);
 });
 
 bot.on("message", async (ctx) => {
@@ -1401,6 +2062,9 @@ bot.on("message", async (ctx) => {
 
   const UserRandomKeywordsStep = await redis.get(
     `UserRandomKeywordsStep:CHATID${ctx.from.id}`
+  );
+  const UserRequestSourceStep = await redis.get(
+    `UserRequestSource:CHATID${ctx.from.id}`
   );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
@@ -1979,6 +2643,70 @@ bot.on("message", async (ctx) => {
       },
     });
     await redis.del(`UserRandomKeywordsStep:CHATID${ctx.from.id}`);
+  }
+
+  if (UserRequestSourceStep === "WAITING_FOR_SOURCE_KEYWORD") {
+    const keywords = ctx.text
+      .toLocaleLowerCase()
+      .split(",")
+      .map((e) => e.trim())
+      .filter((e) => e);
+    const msgID = ctx.message.message_id - 1 || ctx.message.message_id;
+
+    ctx.sendChatAction("typing");
+    ctx.deleteMessage(msgID);
+    ctx.reply(
+      "👈🏻 | کلید واژه با موفقیت دریافت شد. برای سرچ و نتیجه بهتر طبق خواستت، دوست داری بر چه اساسی فرایند استخراج رو انجام بدم؟\n\n👇🏻| انتخاب کن:",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "🟰| مرتبط ترین",
+                callback_data: "github_sortBY_best_match",
+              },
+            ],
+            [
+              {
+                text: "🌟| بیشترین ستاره ➕",
+                callback_data: "github_sortBY_most_stars",
+              },
+              {
+                text: "⭐️| کمترین ستاره ➖",
+                callback_data: "github_sortBY_fewest_stars",
+              },
+            ],
+            [
+              {
+                text: "🍴| بیشترین Forks ➕",
+                callback_data: "github_sortBY_most_forks",
+              },
+              {
+                text: "🍴| کمترین Forks ➖",
+                callback_data: "github_sortBY_fewest_forks",
+              },
+            ],
+            [
+              {
+                text: "⏱️ | آخرین بروزرسانی",
+                callback_data: "github_sortBY_last_recentrly_updated",
+              },
+              {
+                text: "⏰ | اخیرا به روز شده",
+                callback_data: "github_sortBY_recentrly_updated",
+              },
+            ],
+            [{ text: "❌| لغو", callback_data: "github_cancell_scraping" }],
+          ],
+        },
+      }
+    );
+    await redis.setex(
+      `UserSentKeywordsForSource:CHARID${ctx.from.id}`,
+      200,
+      keywords.join("+")
+    );
+    await redis.del(`UserRequestSource:CHATID${ctx.from.id}`);
   }
 });
 
