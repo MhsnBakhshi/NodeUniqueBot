@@ -2010,6 +2010,86 @@ bot.action("continue_scrap_source_github", async (ctx) => {
   await redis.expire(TTLRedisKey, TTLRedisTime + 200);
 });
 
+bot.action("sourceYabFromUserStack", async (ctx) => {
+  const chatID = ctx.callbackQuery.from.id;
+  const user = await findByChatID(chatID);
+
+  const userStack = await findUserStacks(user.id);
+
+  if (userStack.length === 0) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      `👈🏻 | برای استفاده از این بخش باید پروفایل خودتو کامل کنی ${ctx.callbackQuery.from.first_name} عزیز:`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "⏮  | رفتن به پروفایل", callback_data: "myProfile" }],
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  const combinedStacksToOneArray = userStack.flatMap((stack) => stack.fields);
+
+  const sourceKeywords = combinedStacksToOneArray.join("+");
+
+  await redis.setex(
+    `UserSentKeywordsForSource:CHARID${ctx.callbackQuery.from.id}`,
+    200,
+    sourceKeywords
+  );
+
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText(
+    "👈🏻 | برای سرچ و نتیجه بهتر طبق خواستت، دوست داری بر چه اساسی فرایند استخراج رو انجام بدم؟\n\n👇🏻| انتخاب کن:",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "🟰| مرتبط ترین",
+              callback_data: "github_sortBY_best_match",
+            },
+          ],
+          [
+            {
+              text: "🌟| بیشترین ستاره ➕",
+              callback_data: "github_sortBY_most_stars",
+            },
+            {
+              text: "⭐️| کمترین ستاره ➖",
+              callback_data: "github_sortBY_fewest_stars",
+            },
+          ],
+          [
+            {
+              text: "🍴| بیشترین Forks ➕",
+              callback_data: "github_sortBY_most_forks",
+            },
+            {
+              text: "🍴| کمترین Forks ➖",
+              callback_data: "github_sortBY_fewest_forks",
+            },
+          ],
+          [
+            {
+              text: "⏱️ | آخرین بروزرسانی",
+              callback_data: "github_sortBY_last_recentrly_updated",
+            },
+            {
+              text: "⏰ | اخیرا به روز شده",
+              callback_data: "github_sortBY_recentrly_updated",
+            },
+          ],
+          [{ text: "❌| لغو", callback_data: "github_cancell_scraping" }],
+        ],
+      },
+    }
+  );
+});
+
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
