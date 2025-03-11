@@ -3,7 +3,196 @@ const moment = require("moment-timezone");
 const { Markup } = require("telegraf");
 const { findByChatID } = require("./qurey");
 const { prisma } = require("../db");
-
+const provinceList = [
+  "تهران",
+  "آذربایجان-شرقی",
+  "آذربایجان-غربی",
+  "البرز",
+  "اردبیل",
+  "اصفهان",
+  "ایلام",
+  "بوشهر",
+  "چهارمحال-و-بختیاری",
+  "خراسان-جنوبی",
+  "خراسان-رضوی",
+  "خراسان-شمالی",
+  "خوزستان",
+  "زنجان",
+  "سمنان",
+  "سیستان-و-بلوچستان",
+  "فارس",
+  "قزوین",
+  "قم",
+  "کردستان",
+  "کرمان",
+  "کرمانشاه",
+  "کهگیلویه-و-بویراحمد",
+  "گلستان",
+  "گیلان",
+  "لرستان",
+  "مازندران",
+  "مرکزی",
+  "هرمزگان",
+  "همدان",
+  "یزد",
+  "تبریز",
+  "ارومیه",
+  "کرج",
+  "شهرکرد",
+  "بیرجند",
+  "مشهد",
+  "بجنورد",
+  "اهواز",
+  "زاهدان",
+  "شیراز",
+  "سنندج",
+  "یاسوج",
+  "گرگان",
+  "رشت",
+  "خرم-آباد",
+  "ساری",
+  "اراک",
+  "بندرعباس",
+  "کیش",
+];
+const technologyList = [
+  "C#",
+  "PHP",
+  "ASP.NET",
+  "JavaScript",
+  "Microsoft-SQL-Server",
+  ".NET-Core",
+  "React.js",
+  "Python",
+  "Laravel",
+  "WordPress",
+  "HTML",
+  "C++",
+  "CSS",
+  "Next.js",
+  "Angular",
+  "Git",
+  "MySQL",
+  "SQL",
+  "UI/UX",
+  "Node.js",
+  "Java",
+  "TypeScript",
+  "Django",
+  "Figma",
+  "Android",
+  "Docker",
+  "Linux",
+  "PostgreSQL",
+  "Vue.js",
+  "Adobe-Photoshop",
+  "Bootstrap",
+  "WooCommerce",
+  "jQuery",
+  "Adobe-Illustrator",
+  "Artificial-Intelligence",
+  "Delphi",
+  "Entity-Framework",
+  "iOS",
+  "Spring",
+  "Tailwind",
+  "ASP",
+  "React-Native",
+  "Adobe-XD",
+  "Kubernetes",
+  "Machine-Learning",
+  "NestJS",
+  "Oracle-SQL-Developer",
+  "Project-Management",
+  "Scrum",
+  "SEO",
+  "Assembly",
+  "Flutter",
+  "Objective-C",
+  "PyTorch",
+  "TensorFlow",
+  "TSQL",
+  "Unreal-Engine",
+  "Visual-Basic",
+  "Kotlin",
+  "Swift",
+  "Xamarin",
+  "Nuxt.js",
+  "CNC",
+  "CodeIgniter",
+  "Dart",
+  "ElasticSearch",
+  "Express.js",
+  "Jenkins",
+  "MongoDB",
+  "NoSQL",
+  "OpenEmbedded",
+  "OpenNLP",
+  "PL/SQL",
+  "Power-BI",
+  "Redis",
+  "Socket.io",
+  "Terraform",
+  "VBA",
+  "Yii",
+  "Ruby",
+  "Sketch",
+  "ABAP",
+  "Backbone.js",
+  "Bash",
+  "Big-Data",
+  "Blockchain",
+  "CakePHP",
+  "Cassandra",
+  "Couchbase",
+  "Delphi.net",
+  "Drupal",
+  "DynamoDB",
+  "Erlang",
+  "Firebase",
+  "GIS",
+  "GraphQL",
+  "Hadoop",
+  "Haskell",
+  "Hibernate",
+  "HSQLDB",
+  "Indesign",
+  "Joomla",
+  "Kendo-Ui",
+  "Kepware",
+  "Keras",
+  "LINQ",
+  "Magento",
+  "MariaDB",
+  "Matlab",
+  "Moodle",
+  "MQL",
+  "MSQL",
+  "OpenStack",
+  "OWASP",
+  "Perl",
+  "PgSQL",
+  "phpBB",
+  "Powershell",
+  "Ruby-on-Rails",
+  "Rust",
+  "SASS",
+  "Scala",
+  "Shell",
+  "Shell-Scripting",
+  "SQL-DB2",
+  "SQLBase",
+  "SQLite",
+  "Svelte",
+  "SvelteKit",
+  "Symfony",
+  "Unity",
+  "VB.NET",
+  "Visual-C#",
+  "Visual-C++",
+  "Xcode",
+  "Zend-Framework",
+];
 const checkUserMembership = async function (ctx) {
   try {
     const userId = ctx.message?.chat?.id || ctx.callbackQuery?.from?.id;
@@ -94,7 +283,12 @@ const sendUserKeyboard = (ctx) => {
       reply_markup: {
         inline_keyboard: [
           [{ text: "🔙 | بازگشت به منو", callback_data: "backMainMenue" }],
-          [{ text: "🐈 | پروژه های Open Source گیتهاب", callback_data: "gitHubOpenSourceProjects" }],
+          [
+            {
+              text: "🐈 | پروژه های Open Source گیتهاب",
+              callback_data: "gitHubOpenSourceProjects",
+            },
+          ],
           [
             { text: "👤 | پروفایل", callback_data: "myProfile" },
             { text: "🫂 | هم تیمی یاب", callback_data: "team_mate" },
@@ -298,36 +492,56 @@ const findTeamMateFromUserRequstStack = async (ctx, stack) => {
       name: true,
     },
   });
-  
-    let response = "🔎کاربران حوزه درخواستی شما:\n\n";
 
-    matchedUserDetails.forEach((mateInfo) => {
-      let linkedin = mateInfo.linkedin
-        ? `\n🔹 لینکدین: ${mateInfo.linkedin}`
-        : "";
-      let github = mateInfo.gitHub ? `\n🔹 گیتهاب: ${mateInfo.gitHub}` : "";
-      let city = mateInfo.address ? `\n📍 محل سکونت: ${mateInfo.address}` : "";
+  let response = "🔎کاربران حوزه درخواستی شما:\n\n";
 
-      response += `👤 اسم: ${mateInfo.name}
+  matchedUserDetails.forEach((mateInfo) => {
+    let linkedin = mateInfo.linkedin
+      ? `\n🔹 لینکدین: ${mateInfo.linkedin}`
+      : "";
+    let github = mateInfo.gitHub ? `\n🔹 گیتهاب: ${mateInfo.gitHub}` : "";
+    let city = mateInfo.address ? `\n📍 محل سکونت: ${mateInfo.address}` : "";
+
+    response += `👤 اسم: ${mateInfo.name}
     🔗 <a href="tg://openmessage?user_id=${mateInfo.chat_id}">پیوی ${mateInfo.name}</a>${linkedin}${github}${city}\n\n`;
-    });
+  });
 
-    await ctx.sendChatAction("typing");
-    ctx.reply("⌛️ درحال جستجو ... ممکن است کمی زمان بر باشد ⏳");
+  await ctx.sendChatAction("typing");
+  ctx.reply("⌛️ درحال جستجو ... ممکن است کمی زمان بر باشد ⏳");
 
-    await ctx.sendChatAction("typing");
-    ctx.deleteMessage(ctx.message.message_id + 1);
+  await ctx.sendChatAction("typing");
+  ctx.deleteMessage(ctx.message.message_id + 1);
 
-    return ctx.reply(response, {
-      reply_markup: {
-        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
-      },
-      parse_mode: "HTML",
-    });
-  
+  return ctx.reply(response, {
+    reply_markup: {
+      inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+    },
+    parse_mode: "HTML",
+  });
+};
+
+const validateProvince = (province) => {
+  const existProvince = provinceList.includes(province);
+
+  if (!existProvince) {
+   return false
+  }
+  return true;
+};
+const validateTechnology = (technology) => {
+  const existTechnology = technologyList.includes(technology);
+
+  if (!existTechnology) {
+  return false
+  }
+  return true;
 };
 module.exports = {
   checkUserMembership,
+  validateProvince,
+  provinceList,
+  technologyList,
+  validateTechnology,
   sendAdminKeyBoard,
   findTeamMateFromUserProfileStack,
   findTeamMateFromUserRequstStack,
