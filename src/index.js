@@ -38,6 +38,7 @@ const {
   validateTechnology,
   provinceList,
   technologyList,
+  karboardWebsiteProvince,
 } = require("./utils/actions");
 const { scraperNPMPackages } = require("./scraping/package-scrap");
 
@@ -51,7 +52,10 @@ const {
   scrapSerachingArticleFromFreeCodeCamp,
 } = require("./scraping/article-scrap");
 const { scrapSourceCodeFromGitHub } = require("./scraping/source-scrap");
-const { scrapJobFrom_E_Estekhdam } = require("./scraping/job-scraping");
+const {
+  scrapJobFrom_E_Estekhdam,
+  scrapJobsFrom_Karboard,
+} = require("./scraping/job-scraping");
 
 bot.use(async (ctx, next) => {
   await insertUser(ctx);
@@ -1396,7 +1400,7 @@ bot.action("sourceYabFromUserKeyword", async (ctx) => {
   );
 });
 
-bot.action("github_cancell_scraping", async (ctx) => {
+bot.action("github_cancel_scraping", async (ctx) => {
   await redis.del(
     `UserSentKeywordsForSource:CHARID${ctx.callbackQuery?.from?.id}`
   );
@@ -1468,7 +1472,7 @@ bot.action("github_sortBY_best_match", async (ctx) => {
           [
             {
               text: "❌ | لغو",
-              callback_data: "github_cancell_scraping",
+              callback_data: "github_cancel_scraping",
             },
           ],
         ],
@@ -1545,7 +1549,7 @@ bot.action("github_sortBY_most_stars", async (ctx) => {
           [
             {
               text: "❌ | لغو",
-              callback_data: "github_cancell_scraping",
+              callback_data: "github_cancel_scraping",
             },
           ],
         ],
@@ -1623,7 +1627,7 @@ bot.action("github_sortBY_fewest_stars", async (ctx) => {
           [
             {
               text: "❌ | لغو",
-              callback_data: "github_cancell_scraping",
+              callback_data: "github_cancel_scraping",
             },
           ],
         ],
@@ -1701,7 +1705,7 @@ bot.action("github_sortBY_most_forks", async (ctx) => {
           [
             {
               text: "❌ | لغو",
-              callback_data: "github_cancell_scraping",
+              callback_data: "github_cancel_scraping",
             },
           ],
         ],
@@ -1779,7 +1783,7 @@ bot.action("github_sortBY_fewest_forks", async (ctx) => {
           [
             {
               text: "❌ | لغو",
-              callback_data: "github_cancell_scraping",
+              callback_data: "github_cancel_scraping",
             },
           ],
         ],
@@ -1856,7 +1860,7 @@ bot.action("github_sortBY_last_recentrly_updated", async (ctx) => {
           [
             {
               text: "❌ | لغو",
-              callback_data: "github_cancell_scraping",
+              callback_data: "github_cancel_scraping",
             },
           ],
         ],
@@ -1933,7 +1937,7 @@ bot.action("github_sortBY_recentrly_updated", async (ctx) => {
           [
             {
               text: "❌ | لغو",
-              callback_data: "github_cancell_scraping",
+              callback_data: "github_cancel_scraping",
             },
           ],
         ],
@@ -2003,7 +2007,7 @@ bot.action("continue_scrap_source_github", async (ctx) => {
         [
           {
             text: "❌ | لغو",
-            callback_data: "github_cancell_scraping",
+            callback_data: "github_cancel_scraping",
           },
         ],
       ],
@@ -2088,7 +2092,7 @@ bot.action("sourceYabFromUserStack", async (ctx) => {
               callback_data: "github_sortBY_recentrly_updated",
             },
           ],
-          [{ text: "❌| لغو", callback_data: "github_cancell_scraping" }],
+          [{ text: "❌| لغو", callback_data: "github_cancel_scraping" }],
         ],
       },
     }
@@ -2357,8 +2361,453 @@ bot.action("match_job_e-estekhdam", async (ctx) => {
   }
 });
 
-bot.action("cancell_job_e-estekhdam", async (ctx) => {
+bot.action("cancel_job_e-estekhdam", async (ctx) => {
   await redis.del(`UserJobKeywordsChatID${ctx.callbackQuery.from.id}`);
+
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText("استخراج با موفقیت لفو شد ✔", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+      ],
+    },
+  });
+});
+
+bot.action("jobyab_karbord", async (ctx) => {
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "👇🏻 | ابتدا اسم تکنولوژی که فعالیت میکنی و سپس با کاراکتر / از هم جدا و استانی که میخوای کار پیدا کنی برام ارسال کن.\n💡|  مثال:\nNode.js/اردبیل",
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+    }
+  );
+  return await redis.setex(
+    `UserSentJabKarboardWebsiteData:ChatID:${ctx.callbackQuery.from.id}`,
+    120,
+    "UserSentJabKarboardWebsiteData"
+  );
+});
+
+bot.action("highest_money_karboard", async (ctx) => {
+  const jobData = await redis.get(
+    `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+  );
+
+  if (!JSON.parse(jobData)) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "❌ | مدت زمان شما به پایان رسیده، لطفا مجدد مراحل رو انجام بدید .⌛️",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  const { technology, province } = JSON.parse(jobData);
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "💰 | درحال استخراج مشاغل مورد نظر، ممکن است کمی طول بکشد ... ⏳"
+  );
+
+  const page = 1;
+  const { jobPath, totalJobs } = await scrapJobsFrom_Karboard(
+    technology,
+    province,
+    "highest_money",
+    page
+  );
+
+  if (totalJobs === 0) {
+    ctx.sendChatAction("typing");
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    return ctx.reply("آگهی فعالی یافت نشد!", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+  }
+
+  try {
+    ctx.sendChatAction("upload_document");
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(jobPath),
+      filename: `${technology}-karboard_jobs.json`,
+    });
+    fs.unlinkSync(jobPath);
+    const calculateJobsReminaing = Math.max(totalJobs - 30, 0);
+
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    await redis.setex(
+      `UserDataScrapingFromKarboardWantToContinue:CHATID:${ctx.callbackQuery.from.id}`,
+      220,
+      JSON.stringify({
+        page: page + 1,
+        province,
+        technology,
+        remainingJobs: calculateJobsReminaing,
+        sortBy: "highest_money",
+      })
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply(
+      `👈🏻 | 30 شغل با موفقیت استخراج شد و فایل JSON ارسال شد. میخوای ادامه بدی؟\n📍${calculateJobsReminaing} شغل از ${totalJobs} کل شغل هنوز باقی مونده`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "🚀 | ادامه استخراج",
+                callback_data: "continue_job_karboard",
+              },
+            ],
+            [{ text: "❌ | لغو", callback_data: "cancel_job_karboard" }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply("هنگام ارسال فایل خطایی رخ داد!!!");
+  }
+});
+
+bot.action("new_job_karboard", async (ctx) => {
+  const jobData = await redis.get(
+    `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+  );
+
+  if (!JSON.parse(jobData)) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "❌ | مدت زمان شما به پایان رسیده، لطفا مجدد مراحل رو انجام بدید .⌛️",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  const { technology, province } = JSON.parse(jobData);
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "💰 | درحال استخراج مشاغل مورد نظر، ممکن است کمی طول بکشد ... ⏳"
+  );
+
+  const page = 1;
+  const { jobPath, totalJobs } = await scrapJobsFrom_Karboard(
+    technology,
+    province,
+    "new_job",
+    page
+  );
+
+  if (totalJobs === 0) {
+    ctx.sendChatAction("typing");
+    if (fs.existsSync(jobPath)) {
+      fs.unlinkSync(jobPath);
+    }
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    return ctx.reply("آگهی فعالی یافت نشد!", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+  }
+
+  try {
+    ctx.sendChatAction("upload_document");
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(jobPath),
+      filename: `${technology}-karboard_jobs.json`,
+    });
+    fs.unlinkSync(jobPath);
+    const calculateJobsReminaing = Math.max(totalJobs - 30, 0);
+
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    await redis.setex(
+      `UserDataScrapingFromKarboardWantToContinue:CHATID:${ctx.callbackQuery.from.id}`,
+      220,
+      JSON.stringify({
+        page: page + 1,
+        province,
+        technology,
+        remainingJobs: calculateJobsReminaing,
+        sortBy: "new_job",
+      })
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply(
+      `👈🏻 | 30 شغل با موفقیت استخراج شد و فایل JSON ارسال شد. میخوای ادامه بدی؟\n📍${calculateJobsReminaing} شغل از ${totalJobs} کل شغل هنوز باقی مونده`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "🚀 | ادامه استخراج",
+                callback_data: "continue_job_karboard",
+              },
+            ],
+            [{ text: "❌ | لغو", callback_data: "cancel_job_karboard" }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    if (fs.existsSync(jobPath)) {
+      fs.unlinkSync(jobPath);
+    }
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply("هنگام ارسال فایل خطایی رخ داد!!!");
+  }
+});
+
+bot.action("match_job_karboard", async (ctx) => {
+  const jobData = await redis.get(
+    `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+  );
+
+  if (!JSON.parse(jobData)) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "❌ | مدت زمان شما به پایان رسیده، لطفا مجدد مراحل رو انجام بدید .⌛️",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  const { technology, province } = JSON.parse(jobData);
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "💰 | درحال استخراج مشاغل مورد نظر، ممکن است کمی طول بکشد ... ⏳"
+  );
+
+  const page = 1;
+  const { jobPath, totalJobs } = await scrapJobsFrom_Karboard(
+    technology,
+    province,
+    "match_job",
+    page
+  );
+
+  if (totalJobs === 0) {
+    ctx.sendChatAction("typing");
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    return ctx.reply("آگهی فعالی یافت نشد!", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+  }
+
+  try {
+    ctx.sendChatAction("upload_document");
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(jobPath),
+      filename: `${technology}-karboard_jobs.json`,
+    });
+    if (fs.existsSync(jobPath)) {
+      fs.unlinkSync(jobPath);
+    }
+    const calculateJobsReminaing = Math.max(totalJobs - 30, 0);
+
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    await redis.setex(
+      `UserDataScrapingFromKarboardWantToContinue:CHATID:${ctx.callbackQuery.from.id}`,
+      220,
+      JSON.stringify({
+        page: page + 1,
+        province,
+        technology,
+        remainingJobs: calculateJobsReminaing,
+        sortBy: "match_job",
+      })
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply(
+      `👈🏻 | 30 شغل با موفقیت استخراج شد و فایل JSON ارسال شد. میخوای ادامه بدی؟\n📍${calculateJobsReminaing} شغل از ${totalJobs} کل شغل هنوز باقی مونده`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "🚀 | ادامه استخراج",
+                callback_data: "continue_job_karboard",
+              },
+            ],
+            [{ text: "❌ | لغو", callback_data: "cancel_job_karboard" }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    if (fs.existsSync(jobPath)) {
+      fs.unlinkSync(jobPath);
+    }
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply("هنگام ارسال فایل خطایی رخ داد!!!");
+  }
+});
+
+bot.action("continue_job_karboard", async (ctx) => {
+  const data = await redis.get(
+    `UserDataScrapingFromKarboardWantToContinue:CHATID:${ctx.callbackQuery.from.id}`
+  );
+
+  if (!JSON.parse(data)) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "❌ | مدت زمان شما به پایان رسیده، لطفا مجدد مراحل رو انجام بدید .⌛️",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  const { page, province, technology, remainingJobs, sortBy } =
+    JSON.parse(data);
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "💰 | درحال استخراج مشاغل مورد نظر، ممکن است کمی طول بکشد ... ⏳"
+  );
+
+  const { jobPath, totalJobs } = await scrapJobsFrom_Karboard(
+    technology,
+    province,
+    sortBy,
+    page
+  );
+
+  if (totalJobs === 0) {
+    ctx.sendChatAction("typing");
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    return ctx.reply("آگهی فعالی یافت نشد!", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+  }
+
+  try {
+    ctx.sendChatAction("upload_document");
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(jobPath),
+      filename: `${technology}-karboard_jobs.json`,
+    });
+    if (fs.existsSync(jobPath)) {
+      fs.unlinkSync(jobPath);
+    }
+    const calculateJobsRemaining = Math.max(
+      remainingJobs - Math.min(30, remainingJobs),
+      0
+    );
+
+    const TTLRedisKey = `UserDataScrapingFromKarboardWantToContinue:CHATID:${ctx.callbackQuery.from.id}`;
+
+    const TTLRedisTime = await redis.ttl(TTLRedisKey);
+    if (TTLRedisTime > 0) {
+      await redis.expire(TTLRedisKey, TTLRedisTime + 200);
+    } else {
+      await redis.expire(TTLRedisKey, 220);
+    }
+
+    ctx.sendChatAction("typing");
+    return ctx.reply(
+      `👈🏻 | 30 شغل با موفقیت استخراج شد و فایل JSON ارسال شد. میخوای ادامه بدی؟\n📍${calculateJobsRemaining} شغل از ${remainingJobs} کل شغل هنوز باقی مونده`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "🚀 | ادامه استخراج",
+                callback_data: "continue_job_karboard",
+              },
+            ],
+            [{ text: "❌ | لغو", callback_data: "cancel_job_karboard" }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    if (fs.existsSync(jobPath)) {
+      fs.unlinkSync(jobPath);
+    }
+    await redis.del(
+      `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply("هنگام ارسال فایل خطایی رخ داد!!!");
+  }
+});
+
+bot.action("cancel_job_karboard", async (ctx) => {
+  await redis.del(
+    `UserKarboardJobKeywords:ChatID:${ctx.callbackQuery.from.id}`
+  );
+  await redis.del(
+    `UserDataScrapingFromKarboardWantToContinue:CHATID:${ctx.callbackQuery.from.id}`
+  );
 
   ctx.sendChatAction("typing");
   return ctx.editMessageText("استخراج با موفقیت لفو شد ✔", {
@@ -2372,9 +2821,15 @@ bot.action("cancell_job_e-estekhdam", async (ctx) => {
 
 bot.action("jobyab_jobinja", async (ctx) => {});
 
-bot.action("jobyab_jobvision", async (ctx) => {});
+bot.action("match_job_jobinja", async (ctx) => {});
 
-bot.action("jobyab_karbord", async (ctx) => {});
+bot.action("highest_money_jobinja", async (ctx) => {});
+
+bot.action("new_job_jobinja", async (ctx) => {});
+
+bot.action("cancel_job_jobinja", async (ctx) => {});
+
+bot.action("jobyab_jobvision", async (ctx) => {});
 
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
@@ -2434,6 +2889,9 @@ bot.on("message", async (ctx) => {
   );
   const waitingForUserJobData = await redis.get(
     `UserSentJobDataChatID${ctx.from.id}`
+  );
+  const jabKarboardWebsiteData = await redis.get(
+    `UserSentJabKarboardWebsiteData:ChatID:${ctx.from.id}`
   );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
@@ -3065,7 +3523,7 @@ bot.on("message", async (ctx) => {
                 callback_data: "github_sortBY_recentrly_updated",
               },
             ],
-            [{ text: "❌| لغو", callback_data: "github_cancell_scraping" }],
+            [{ text: "❌| لغو", callback_data: "github_cancel_scraping" }],
           ],
         },
       }
@@ -3162,7 +3620,7 @@ bot.on("message", async (ctx) => {
                 callback_data: "match_job_e-estekhdam",
               },
             ],
-            [{ text: "❌ | لغو", callback_data: "cancell_job_e-estekhdam" }],
+            [{ text: "❌ | لغو", callback_data: "cancel_job_e-estekhdam" }],
           ],
         },
       }
@@ -3171,6 +3629,83 @@ bot.on("message", async (ctx) => {
     await redis.del(`UserSentJobDataChatID${ctx.from.id}`);
     return await redis.setex(
       `UserJobKeywordsChatID${ctx.from.id}`,
+      220,
+      JSON.stringify({ technology, province })
+    );
+  }
+
+  if (jabKarboardWebsiteData === "UserSentJabKarboardWebsiteData") {
+    const keyword = ctx.text.split("/");
+
+    if (keyword.length !== 2) {
+      await redis.del(`UserSentJabKarboardWebsiteData:ChatID:${ctx.from.id}`);
+      ctx.deleteMessage();
+      return ctx.reply(
+        "❌ | فُرمت ارسالی اشتباهه، لطفا طبق فُرمت خواسته شده ارسال کن.\nمجدد مراحلو طی کن.",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+            ],
+          },
+        }
+      );
+    }
+    const technology = keyword[0];
+    const province = keyword[1];
+
+    const existProvince = province in karboardWebsiteProvince;
+
+    if (!existProvince) {
+      ctx.sendChatAction("typing");
+      ctx.reply(
+        "❌ | استانی که ارسال کردی داخل لیست استان های موجود سایت کاربرد موجود نیست.\n👇🏻 | لیست استان های موجود برات ارسال کردم.",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+            ],
+          },
+        }
+      );
+
+      return ctx.reply(
+        `🌆 | لیست استان های موجود به شرح زیر می‌باشد:\n\n${Object.keys(
+          karboardWebsiteProvince
+        )
+          .join(" ")
+          .replace(/ /g, "\n")}`
+      );
+    }
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      "🔑 | کلید واژه با موفقیت دریافت شد. حالا میخوای با چه فیلتری برات جستجو رو انجام بدم؟\n👇🏻| انتخاب کن:",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "💵 | بالاترین‌حقوق",
+                callback_data: "highest_money_karboard",
+              },
+            ],
+
+            [
+              { text: "🆕 | جدید‌ترین", callback_data: "new_job_karboard" },
+              {
+                text: "🆗 | مرتبط‌‌ترین",
+                callback_data: "match_job_karboard",
+              },
+            ],
+            [{ text: "❌ | لغو", callback_data: "cancel_job_karboard" }],
+          ],
+        },
+      }
+    );
+
+    await redis.del(`UserSentJabKarboardWebsiteData:ChatID:${ctx.from.id}`);
+    return await redis.setex(
+      `UserKarboardJobKeywords:ChatID:${ctx.from.id}`,
       220,
       JSON.stringify({ technology, province })
     );
