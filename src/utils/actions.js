@@ -193,6 +193,69 @@ const technologyList = [
   "Xcode",
   "Zend-Framework",
 ];
+
+const karboardWebsiteProvince = {
+  تهران: "tehran",
+
+  اصفهان: "isfahan",
+
+  البرز: "alborz",
+
+  خراسان_رضوی: "khorasan-razavi",
+
+  فارس: "fars",
+
+  قم: "qhom",
+
+  قزوین: "qhazvin",
+
+  مازندران: "mazandaran",
+
+  کرمان: "kerman",
+
+  آذربایجان_شرقی: "azarbayjan-sharghi",
+
+  گیلان: "gilan",
+
+  یزد: "yazd",
+
+  خوزستان: "khoozestan",
+
+  مرکزی: "markazi",
+
+  آذربایجان_غربی: "azarbayjan-gharbi",
+
+  اردبیل: "ardabil",
+
+  زنجان: "zanjan",
+
+  سمنان: "semnan",
+  ایلام: "ilam",
+
+  چهارمحال_و_بختیاری: "chaharmahal-&-bakhtiari",
+
+  خراسان_شمالی: "khorasan-shomali",
+
+  خراسان_جنوبی: "khorasan-jonoobi",
+
+  سیستان_و_بلوچستان: "sistan-&-baluchestan",
+
+  کردستان: "kordestan",
+
+  کرمانشاه: "kermanshah",
+
+  کهگیلویه_و_بویر_احمد: "kohgilooye-&-boyerahmad",
+
+  گلستان: "golestan",
+
+  لرستان: "lorestan",
+
+  هرمزگان: "hormozgan",
+
+  همدان: "hamedan",
+
+  بوشهر: "booshehr",
+};
 const checkUserMembership = async function (ctx) {
   try {
     const userId = ctx.message?.chat?.id || ctx.callbackQuery?.from?.id;
@@ -524,7 +587,7 @@ const validateProvince = (province) => {
   const existProvince = provinceList.includes(province);
 
   if (!existProvince) {
-   return false
+    return false;
   }
   return true;
 };
@@ -532,14 +595,34 @@ const validateTechnology = (technology) => {
   const existTechnology = technologyList.includes(technology);
 
   if (!existTechnology) {
-  return false
+    return false;
   }
   return true;
 };
+function convertPersianToEnglishNumbers(text) {
+  const persianToEnglish = {
+    "۰": "0",
+    "۱": "1",
+    "۲": "2",
+    "۳": "3",
+    "۴": "4",
+    "۵": "5",
+    "۶": "6",
+    "۷": "7",
+    "۸": "8",
+    "۹": "9",
+  };
+
+  const pattern = /[۰-۹]/g;
+
+  return text.replace(pattern, (match) => persianToEnglish[match]);
+}
 module.exports = {
   checkUserMembership,
+  convertPersianToEnglishNumbers,
   validateProvince,
   provinceList,
+  karboardWebsiteProvince,
   technologyList,
   validateTechnology,
   sendAdminKeyBoard,
