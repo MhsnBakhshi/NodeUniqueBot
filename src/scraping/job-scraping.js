@@ -178,7 +178,99 @@ const scrapJobsFrom_Karboard = async (
   };
 };
 
+const scrapJobsFrom_JobVision = async (
+  technology,
+  province,
+  sortBy,
+  offset = 1
+) => {
+  let jobs = [];
+  const jobPath = `./src/scraping/${technology}-${province}-JobVisionJobs.json`;
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    });
+
+    const page = await browser.newPage();
+
+    let url = `https://jobvision.ir/jobs/keyword/${technology}/category/developer-in-all-cities-of-${province}?page=${offset}`;
+    switch (sortBy) {
+      case "new_job":
+        url = url.concat("&sort=0");
+        break;
+
+      case "match_job":
+        url = url.concat("&sort=1");
+        break;
+
+      case "highest_money":
+        url = url.concat("&sort=2");
+        break;
+    }
+
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 90000 });
+
+    const content = await page.content();
+    const $ = cheerio.load(content);
+    
+
+    const totalJobs = $("h1.seo-title b").text().trim();
+
+    $("job-card-list job-card").each((index, element) => {
+      const jobItem = $(element);
+
+      const title = jobItem.find("div.job-card-title").text().trim();
+      const link = jobItem.find("a.desktop-job-card").attr("href")?.trim();
+      const compamyName = jobItem
+        .find("a.text-black.line-height-24.pointer-events-none")
+        .text()
+        .trim();
+      const publishedDate = jobItem
+        .find("span.d-flex.align-items-center")
+        .text()
+        .trim();
+      const location = jobItem
+        .find("span.text-secondary.pointer-events-none.ng-star-inserted")
+        .text()
+        .trim();
+
+      const salary = jobItem.find("span.font-size-12px").text().trim();
+
+      if (title && link) {
+        jobs.push({
+          title,
+          link: `https://jobvision.ir${link}`,
+          compamyName,
+          location,
+          publishedDate: publishedDate || "قرار داده نشده",
+          salary: salary || "قرار داده نشده",
+        });
+      }
+    });
+    fs.writeFileSync(jobPath, JSON.stringify(jobs, null, 4), "utf-8");
+
+    await browser.close();
+    return {
+      totalJobs: convertPersianToEnglishNumbers(totalJobs) || 0,
+      jobsAdded: jobs.length,
+      jobPath,
+    };
+  } catch (error) {
+    console.log(error);
+    fs.writeFileSync(jobPath, JSON.stringify(jobs, null, 4), "utf-8");
+    return {
+      totalJobs: 0,
+      jobsAdded: jobs.length,
+      jobPath,
+    };
+  }
+};
+
+const scrapJobsFrom_JobInja = async () => {}
+
 module.exports = {
   scrapJobFrom_E_Estekhdam,
   scrapJobsFrom_Karboard,
+  scrapJobsFrom_JobVision,
 };
