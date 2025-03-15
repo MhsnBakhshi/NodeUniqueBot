@@ -56,6 +56,7 @@ const {
   scrapJobFrom_E_Estekhdam,
   scrapJobsFrom_Karboard,
   scrapJobsFrom_JobVision,
+  scrapJobsFrom_JobInja,
 } = require("./scraping/job-scraping");
 
 bot.use(async (ctx, next) => {
@@ -3255,15 +3256,277 @@ bot.action("cancel_job_jobvision", async (ctx) => {
   });
 });
 
-bot.action("jobyab_jobinja", async (ctx) => {});
+bot.action("jobyab_jobinja", async (ctx) => {
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "👇🏻 | ابتدا اسم تکنولوژی که فعالیت میکنی و سپس با کاراکتر / از هم جدا و استانی که میخوای کار پیدا کنی برام ارسال کن.\n💡|  مثال:\nNode.js/اردبیل",
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+      },
+    }
+  );
+  return await redis.setex(
+    `UserSentJabinjaWebsiteData:ChatID:${ctx.callbackQuery.from.id}`,
+    120,
+    "UserSentJabinjaWebsiteDataStep"
+  );
+});
 
-bot.action("match_job_jobinja", async (ctx) => {});
+bot.action("match_job_jobinja", async (ctx) => {
+  const jobData = await redis.get(
+    `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+  );
 
-bot.action("highest_money_jobinja", async (ctx) => {});
+  if (!JSON.parse(jobData)) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "❌ | مدت زمان شما به پایان رسیده، لطفا مجدد مراحل رو انجام بدید .⌛️",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
 
-bot.action("new_job_jobinja", async (ctx) => {});
+  const { technology, province } = JSON.parse(jobData);
 
-bot.action("cancel_job_jobinja", async (ctx) => {});
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "💰 | درحال استخراج مشاغل مورد نظر، ممکن است کمی طول بکشد ... ⏳"
+  );
+
+  const { jobPath, totalJobs, jobsAdded } = await scrapJobsFrom_JobInja(
+    technology,
+    province,
+    "match_job",
+  );
+
+  if (totalJobs === 0 || jobsAdded === 0) {
+    ctx.sendChatAction("typing");
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    return ctx.reply("آگهی فعالی یافت نشد!", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+  }
+
+  try {
+    ctx.sendChatAction("upload_document");
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(jobPath),
+      filename: `${technology}-jobinja_jobs.json`,
+    });
+    fs.unlinkSync(jobPath);
+
+    await redis.del(
+      `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply(
+      `👈🏻 | استخراج با موفقیت به پایان رسید و ${totalJobs} شغل نسبت به کلید واژه درخواستی شما یافت شد و فایل JSON برای شما ارسال شد. ✅`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply("هنگام ارسال فایل خطایی رخ داد!!!");
+  }
+
+});
+
+bot.action("highest_money_jobinja", async (ctx) => {
+  const jobData = await redis.get(
+    `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+  );
+
+  if (!JSON.parse(jobData)) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "❌ | مدت زمان شما به پایان رسیده، لطفا مجدد مراحل رو انجام بدید .⌛️",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  const { technology, province } = JSON.parse(jobData);
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "💰 | درحال استخراج مشاغل مورد نظر، ممکن است کمی طول بکشد ... ⏳"
+  );
+
+  const { jobPath, totalJobs, jobsAdded } = await scrapJobsFrom_JobInja(
+    technology,
+    province,
+    "highest_money",
+  );
+
+  if (totalJobs === 0 || jobsAdded === 0) {
+    ctx.sendChatAction("typing");
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    return ctx.reply("آگهی فعالی یافت نشد!", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+  }
+
+  try {
+    ctx.sendChatAction("upload_document");
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(jobPath),
+      filename: `${technology}-jobinja_jobs.json`,
+    });
+    fs.unlinkSync(jobPath);
+
+    await redis.del(
+      `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply(
+      `👈🏻 | استخراج با موفقیت به پایان رسید و ${totalJobs} شغل نسبت به کلید واژه درخواستی شما یافت شد و فایل JSON برای شما ارسال شد. ✅`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply("هنگام ارسال فایل خطایی رخ داد!!!");
+  }
+});
+
+bot.action("new_job_jobinja", async (ctx) => {
+  const jobData = await redis.get(
+    `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+  );
+
+  if (!JSON.parse(jobData)) {
+    ctx.sendChatAction("typing");
+    return ctx.editMessageText(
+      "❌ | مدت زمان شما به پایان رسیده، لطفا مجدد مراحل رو انجام بدید .⌛️",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  const { technology, province } = JSON.parse(jobData);
+
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    "💰 | درحال استخراج مشاغل مورد نظر، ممکن است کمی طول بکشد ... ⏳"
+  );
+
+  const { jobPath, totalJobs, jobsAdded } = await scrapJobsFrom_JobInja(
+    technology,
+    province,
+    "new_job",
+  );
+
+  if (totalJobs === 0 || jobsAdded === 0) {
+    ctx.sendChatAction("typing");
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    return ctx.reply("آگهی فعالی یافت نشد!", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+        ],
+      },
+    });
+  }
+
+  try {
+    ctx.sendChatAction("upload_document");
+    await ctx.telegram.sendDocument(ctx.callbackQuery.from.id, {
+      source: fs.createReadStream(jobPath),
+      filename: `${technology}-jobinja_jobs.json`,
+    });
+    fs.unlinkSync(jobPath);
+
+    await redis.del(
+      `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply(
+      `👈🏻 | استخراج با موفقیت به پایان رسید و ${totalJobs} شغل نسبت به کلید واژه درخواستی شما یافت شد و فایل JSON برای شما ارسال شد. ✅`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    fs.unlinkSync(jobPath);
+    await redis.del(
+      `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+    );
+    ctx.sendChatAction("typing");
+    return ctx.reply("هنگام ارسال فایل خطایی رخ داد!!!");
+  }
+});
+
+bot.action("cancel_job_jobinja", async (ctx) => {
+  await redis.del(
+    `UserJobInjaJobDataInput:ChatID:${ctx.callbackQuery.from.id}`
+  );
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText("استخراج با موفقیت لفو شد ✔", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+      ],
+    },
+  });
+});
 
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
@@ -3329,6 +3592,9 @@ bot.on("message", async (ctx) => {
   );
   const jabVisionWebsiteData = await redis.get(
     `UserSentJabJobvisionWebsiteData:ChatID:${ctx.from.id}`
+  );
+  const jabinjaWebsiteData = await redis.get(
+    `UserSentJabinjaWebsiteData:ChatID:${ctx.from.id}`
   );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
@@ -4228,6 +4494,89 @@ bot.on("message", async (ctx) => {
       JSON.stringify({
         technology,
         province: karboardWebsiteProvince[province],
+      })
+    );
+  }
+
+  if (jabinjaWebsiteData === "UserSentJabinjaWebsiteDataStep") {
+    const keyword = ctx.text.split("/");
+
+    if (keyword.length !== 2) {
+      await redis.del(
+        `UserSentJabinjaWebsiteData:ChatID:${ctx.from.id}`
+      );
+      ctx.deleteMessage();
+      return ctx.reply(
+        "❌ | فُرمت ارسالی اشتباهه، لطفا طبق فُرمت خواسته شده ارسال کن.\nمجدد مراحلو طی کن.",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+            ],
+          },
+        }
+      );
+    }
+    const technology = keyword[0];
+    const province = keyword[1];
+
+    const checkingProvince = validateProvince(province);
+    if (!checkingProvince) {
+      ctx.sendChatAction("typing");
+      ctx.reply(
+        "❌ | استانی که ارسال کردی داخل لیست استان های موجود سایت جابینجا موجود نیست.\n👇🏻 | لیست استان های موجود برات ارسال کردم.",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+            ],
+          },
+        }
+      );
+
+    return ctx.reply(
+        `🌆 | لیست استان های موجود به شرح زیر می‌باشد:\n\n${provinceList
+          .join(" ")
+          .replace(/ /g, "\n")}`
+      );
+    }
+
+    ctx.sendChatAction("typing");
+    ctx.reply(
+      "🔑 | کلید واژه با موفقیت دریافت شد. حالا میخوای با چه فیلتری برات جستجو رو انجام بدم؟\n👇🏻| انتخاب کن:",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "💵 | بالاترین‌حقوق",
+                callback_data: "highest_money_jobinja",
+              },
+            ],
+
+            [
+              { text: "🆕 | جدید‌ترین", callback_data: "new_job_jobinja" },
+              {
+                text: "🆗 | مرتبط‌‌ترین",
+                callback_data: "match_job_jobinja",
+              },
+            ],
+            [{ text: "❌ | لغو", callback_data: "cancel_job_jobinja" }],
+          ],
+        },
+      }
+    );
+
+    await redis.del(
+      `UserSentJabinjaWebsiteData:ChatID:${ctx.from.id}`
+    );
+
+    return await redis.setex(
+      `UserJobInjaJobDataInput:ChatID:${ctx.from.id}`,
+      220,
+      JSON.stringify({
+        technology,
+        province,
       })
     );
   }

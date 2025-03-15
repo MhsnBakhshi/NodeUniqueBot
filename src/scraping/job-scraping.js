@@ -213,7 +213,6 @@ const scrapJobsFrom_JobVision = async (
 
     const content = await page.content();
     const $ = cheerio.load(content);
-    
 
     const totalJobs = $("h1.seo-title b").text().trim();
 
@@ -267,10 +266,122 @@ const scrapJobsFrom_JobVision = async (
   }
 };
 
-const scrapJobsFrom_JobInja = async () => {}
+const scrapJobsFrom_JobInja = async (technology, province, sortBy) => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    });
+
+    const page = await browser.newPage();
+
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
+    );
+
+    let offset = 1;
+
+    let baseUrl = `https://jobinja.ir/jobs?&filters%5Bjob_categories%5D%5B0%5D=&filters%5Bkeywords%5D%5B0%5D=${technology}&filters%5Blocations%5D%5B0%5D=${province}&preferred_before=1742026128`;
+    switch (sortBy) {
+      case "new_job":
+        baseUrl = baseUrl.concat("&sort_by=published_at_desc");
+        break;
+
+      case "match_job":
+        baseUrl = baseUrl.concat("&sort_by=relevance_desc");
+        break;
+
+      case "highest_money":
+        baseUrl = baseUrl.concat("&sort_by=salary_from_desc");
+        break;
+    }
+
+    await page.goto(`${baseUrl}&page=${offset}`, {
+      waitUntil: "networkidle2",
+      timeout: 200000,
+    });
+
+    const content = await page.content();
+    const $ = cheerio.load(content);
+    const jobs = [];
+    const jobPath = `./src/scraping/${technology}-${province}-JobinjaJobs.json`;
+
+    const totalJobsFoundPart = $(
+      "h3.c-jobSearchState__numberOfResults span.c-jobSearchState__numberOfResultsEcho"
+    )
+      .text()
+      .trim()
+      .split(" ");
+    const totalJobsFound = convertPersianToEnglishNumbers(
+      totalJobsFoundPart[0]
+    );
+
+    while (jobs.length < totalJobsFound) {
+      await page.goto(`${baseUrl}&page=${offset}`, {
+        waitUntil: "networkidle2",
+        timeout: 90000,
+      });
+      const pageContent = await page.content();
+      const $$ = cheerio.load(pageContent);
+
+      $$("ul.c-jobListView__list li").each((index, element) => {
+        const jobCard = $$(element);
+
+        let details = [];
+
+        jobCard
+          .find("ul.o-listView__itemComplementInfo li.c-jobListView__metaItem")
+          .each((index, ele) => {
+            details.push(
+              $$(ele)
+                .find("li span")
+                ?.text()
+                ?.trim()
+                ?.replace(/[\n]*/gm, "")
+                .replace(/\s{2,}/gm, "")
+            );
+          });
+
+        let title = jobCard.find("a.c-jobListView__titleLink").text().trim();
+        let link = jobCard
+          .find("a.c-jobListView__titleLink")
+          .attr("href")
+          ?.trim();
+
+        if (title && link) {
+          jobs.push({
+            title,
+            link,
+            details,
+          });
+        }
+      });
+
+      offset++;
+      if (jobs.length >= totalJobsFound) break;
+    }
+
+    fs.writeFileSync(jobPath, JSON.stringify(jobs, null, 4), "utf-8");
+    await browser.close();
+    return {
+      totalJobs: totalJobsFound,
+      jobsAdded: jobs.length,
+      jobPath,
+    };
+  } catch (error) {
+    console.log("Error on scraping jobinja data");
+    console.log(error);
+    return {
+      totalJobs: 0,
+      jobsAdded: jobs.length,
+      jobPath,
+    };
+  }
+};
 
 module.exports = {
   scrapJobFrom_E_Estekhdam,
   scrapJobsFrom_Karboard,
   scrapJobsFrom_JobVision,
+  scrapJobsFrom_JobInja,
 };
