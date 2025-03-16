@@ -11,7 +11,7 @@
 
 ### Installation
 
-1. Frist Clone Repo:
+1. First Clone Repo:
 
    ```sh
    https://github.com/MhsnBakhshi/NodeUniqueBot
@@ -43,6 +43,12 @@ BOT_TOKEN = 7852489665:AAHkF462lzErDeCfq-O1I3N72KTI3WOnawc
 ```
 .
 ├── src
+|   ├── scraping
+|   |   ├── article-scrap.js.                               
+|   |   ├── job-scraping.js.                               
+|   |   ├── openSource-scrap.js.                               
+|   |   ├── package-scrap.js.                               
+│   |   └── source-scrap.js
 │   ├── utils
 |   |   ├── actions.js.                               
 │   |   └── qurey.js              
@@ -63,7 +69,7 @@ BOT_TOKEN = 7852489665:AAHkF462lzErDeCfq-O1I3N72KTI3WOnawc
 ## How Contribute In Project
 
 1. Fork Repo
-2. clone Forked Repo.
+2. Clone Forked Repo.
 3. Test And Add Your Feature
 4. Commit Your Feature
 5. Push
