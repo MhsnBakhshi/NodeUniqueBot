@@ -58,6 +58,7 @@ const {
   scrapJobsFrom_JobVision,
   scrapJobsFrom_JobInja,
 } = require("./scraping/job-scraping");
+const { scrapOpenSourceFromGitHub } = require("./scraping/openSource-scrap");
 
 bot.use(async (ctx, next) => {
   await insertUser(ctx);
@@ -828,11 +829,28 @@ bot.action("user_request_stack", async (ctx) => {
 
 bot.action("packageYab", async (ctx) => {
   ctx.sendChatAction("typing");
-  ctx.editMessageText(
-    `به بخش پکیج یاب خوش اومدی. \n برام keyword ارسال کن تا پکیج های مرتبط باهاش رو از سایت NPM برات پیدا کنم👇🏻`,
+  return ctx.editMessageText(
+    "👇🏻 | به پکیج یاب خوش آومدی یکی از سایت های زیر رو انتخاب کن تا برات جستجو رو انجام بدم.",
     {
       reply_markup: {
-        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+        inline_keyboard: [
+          [{ text: "🔍 | سایت NPM", callback_data: "NPM_PackageYab" }],
+          [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+        ],
+      },
+    }
+  );
+});
+
+bot.action("NPM_PackageYab", async (ctx) => {
+  ctx.sendChatAction("typing");
+  ctx.editMessageText(
+    `برام keyword ارسال کن تا پکیج های مرتبط باهاش رو از سایت NPM برات پیدا کنم👇🏻`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "❌ | لغو", callback_data: "cancel_scrap" }],
+        ],
       },
     }
   );
@@ -3302,7 +3320,7 @@ bot.action("match_job_jobinja", async (ctx) => {
   const { jobPath, totalJobs, jobsAdded } = await scrapJobsFrom_JobInja(
     technology,
     province,
-    "match_job",
+    "match_job"
   );
 
   if (totalJobs === 0 || jobsAdded === 0) {
@@ -3351,7 +3369,6 @@ bot.action("match_job_jobinja", async (ctx) => {
     ctx.sendChatAction("typing");
     return ctx.reply("هنگام ارسال فایل خطایی رخ داد!!!");
   }
-
 });
 
 bot.action("highest_money_jobinja", async (ctx) => {
@@ -3383,7 +3400,7 @@ bot.action("highest_money_jobinja", async (ctx) => {
   const { jobPath, totalJobs, jobsAdded } = await scrapJobsFrom_JobInja(
     technology,
     province,
-    "highest_money",
+    "highest_money"
   );
 
   if (totalJobs === 0 || jobsAdded === 0) {
@@ -3463,7 +3480,7 @@ bot.action("new_job_jobinja", async (ctx) => {
   const { jobPath, totalJobs, jobsAdded } = await scrapJobsFrom_JobInja(
     technology,
     province,
-    "new_job",
+    "new_job"
   );
 
   if (totalJobs === 0 || jobsAdded === 0) {
@@ -3528,6 +3545,32 @@ bot.action("cancel_job_jobinja", async (ctx) => {
   });
 });
 
+bot.action("gitHubOpenSourceProjects", async (ctx) => {
+  ctx.sendChatAction("typing");
+  return ctx.editMessageText(
+    "👈🏻 | به بخش پیدا کردن پروژه های open source از گیت هاب خوش اومدی.\n\n⚠️ | دقت داشته باش این بخش بر اساس پروژه هایی که داخل وبسایت مد نظر ثبت شده است کار میکند نه مستقیم از گیت هاب.",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔪 | شروع", callback_data: "startOpenSource_scraping" }],
+          [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+        ],
+      },
+    }
+  );
+});
+
+bot.action("startOpenSource_scraping", async (ctx) => {
+  ctx.deleteMessage();
+  ctx.sendChatAction("typing");
+  ctx.reply("👇🏻 | زبان برنامه نویس خود را ارسال نمایید");
+
+  return redis.setex(
+    `UserSendProgrammingLang:chatid: ${ctx.callbackQuery.from.id}`,
+    120,
+    "SentLangForGitHubOpenSource"
+  );
+});
 bot.on("message", async (ctx) => {
   const userRole = await getUserRole(ctx);
   const sendMessageStep = await redis.get("sendMessageStep");
@@ -3595,6 +3638,9 @@ bot.on("message", async (ctx) => {
   );
   const jabinjaWebsiteData = await redis.get(
     `UserSentJabinjaWebsiteData:ChatID:${ctx.from.id}`
+  );
+  const langForGitHubOpenSource = await redis.get(
+    `UserSendProgrammingLang:chatid: ${ctx.from.id}`
   );
 
   if (isSentForwardTextFlag && userRole.role === "ADMIN") {
@@ -4502,9 +4548,7 @@ bot.on("message", async (ctx) => {
     const keyword = ctx.text.split("/");
 
     if (keyword.length !== 2) {
-      await redis.del(
-        `UserSentJabinjaWebsiteData:ChatID:${ctx.from.id}`
-      );
+      await redis.del(`UserSentJabinjaWebsiteData:ChatID:${ctx.from.id}`);
       ctx.deleteMessage();
       return ctx.reply(
         "❌ | فُرمت ارسالی اشتباهه، لطفا طبق فُرمت خواسته شده ارسال کن.\nمجدد مراحلو طی کن.",
@@ -4534,7 +4578,7 @@ bot.on("message", async (ctx) => {
         }
       );
 
-    return ctx.reply(
+      return ctx.reply(
         `🌆 | لیست استان های موجود به شرح زیر می‌باشد:\n\n${provinceList
           .join(" ")
           .replace(/ /g, "\n")}`
@@ -4567,9 +4611,7 @@ bot.on("message", async (ctx) => {
       }
     );
 
-    await redis.del(
-      `UserSentJabinjaWebsiteData:ChatID:${ctx.from.id}`
-    );
+    await redis.del(`UserSentJabinjaWebsiteData:ChatID:${ctx.from.id}`);
 
     return await redis.setex(
       `UserJobInjaJobDataInput:ChatID:${ctx.from.id}`,
@@ -4579,6 +4621,56 @@ bot.on("message", async (ctx) => {
         province,
       })
     );
+  }
+
+  if (langForGitHubOpenSource === "SentLangForGitHubOpenSource") {
+    const lang = ctx.text;
+
+    ctx.sendChatAction("typing");
+    ctx.reply("درحال استخراج پروژهای متن باز ...");
+
+    const { count, path } = await scrapOpenSourceFromGitHub(lang);
+
+    if (count === 0) {
+      ctx.sendChatAction("typing");
+      await redis.del(`UserSendProgrammingLang:chatid: ${ctx.from.id}`);
+
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+      return ctx.reply(" پروژه ایی نسبت به درخواست شما یافت نشد.", {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔙 | بازگشت", callback_data: "backMenu" }],
+          ],
+        },
+      });
+    }
+    try {
+      ctx.sendChatAction("upload_document");
+      await ctx.telegram.sendDocument(ctx.from.id, {
+        source: fs.createReadStream(path),
+        filename: `${lang}-openSources.json`,
+      });
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+
+      await redis.del(`UserSendProgrammingLang:chatid: ${ctx.from.id}`);
+      ctx.sendChatAction("typing");
+      return ctx.reply(
+      `استخراج با موفقیت انجام شد و ${count} پروژه متن باز یافت شد ✔`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔙 | بازگشت به پنل", callback_data: "backMenu" }],
+            ],
+          },
+        }
+      );
+    } catch (error) {
+      console.log(error);
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+      await redis.del(`UserSendProgrammingLang:chatid: ${ctx.from.id}`);
+      ctx.sendChatAction("typing");
+      return ctx.reply("هنگام ارسال فایل خطایی رخ داد!!!");
+    }
   }
 });
 
