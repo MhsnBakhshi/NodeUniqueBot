@@ -828,11 +828,23 @@ bot.action("user_request_stack", async (ctx) => {
 
 bot.action("packageYab", async (ctx) => {
   ctx.sendChatAction("typing");
+ return ctx.editMessageText("👇🏻 | به پکیج یاب خوش آومدی یکی از سایت های زیر رو انتخاب کن تا برات جستجو رو انجام بدم.", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🔍 | سایت NPM", callback_data: "NPM_PackageYab" }],
+        [{ text: "🔙 | بازگشت", callback_data: "backMenu" }]
+      ]
+    }
+  })
+});
+
+bot.action("NPM_PackageYab", async (ctx) => {
+  ctx.sendChatAction("typing");
   ctx.editMessageText(
-    `به بخش پکیج یاب خوش اومدی. \n برام keyword ارسال کن تا پکیج های مرتبط باهاش رو از سایت NPM برات پیدا کنم👇🏻`,
+    `برام keyword ارسال کن تا پکیج های مرتبط باهاش رو از سایت NPM برات پیدا کنم👇🏻`,
     {
       reply_markup: {
-        inline_keyboard: [[{ text: "🔙 | بازگشت", callback_data: "backMenu" }]],
+        inline_keyboard: [[{ text: "❌ | لغو", callback_data: "cancel_scrap" }]],
       },
     }
   );
@@ -842,7 +854,7 @@ bot.action("packageYab", async (ctx) => {
     120,
     "WAITING_FOR_PACKAGE_KEYWORD"
   );
-});
+})
 
 bot.action("continue_scrap", async (ctx) => {
   const packageData = await redis.get(
