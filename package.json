@@ -7,7 +7,7 @@
   "description": "",
   "main": "./src/index.js",
   "scripts": {
-    "start:dev": "nodemon",
+    "start": "node ./src/index.js",
     "prisma:init": "npx prisma init",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:generate": "npx prisma generate",
