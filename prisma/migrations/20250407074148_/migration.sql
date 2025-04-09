@@ -3,6 +3,9 @@ CREATE TABLE `User` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(191) NOT NULL,
     `chat_id` BIGINT NOT NULL,
+    `gitHub` VARCHAR(191) NULL,
+    `linkedin` VARCHAR(191) NULL,
+    `address` VARCHAR(191) NULL,
     `role` ENUM('USER', 'ADMIN') NULL DEFAULT 'USER',
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
@@ -35,8 +38,6 @@ CREATE TABLE `Stack` (
 CREATE TABLE `UserStack` (
     `user_id` INTEGER NOT NULL,
     `stack_id` INTEGER NOT NULL,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_at` DATETIME(3) NOT NULL,
 
     PRIMARY KEY (`user_id`, `stack_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
