@@ -9,7 +9,6 @@ puppeteer.use(StealthPlugin());
 const scrapJobFrom_E_Estekhdam = async (technology, province, sortBy) => {
   const browser = await puppeteer.launch({
     headless: true,
-    executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
   });
 
   const page = await browser.newPage();
@@ -98,7 +97,6 @@ const scrapJobsFrom_Karboard = async (
 ) => {
   const browser = await puppeteer.launch({
     headless: true,
-    executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
   });
 
   const page = await browser.newPage();
@@ -189,7 +187,6 @@ const scrapJobsFrom_JobVision = async (
   try {
     const browser = await puppeteer.launch({
       headless: true,
-      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
     });
 
     const page = await browser.newPage();
@@ -270,7 +267,6 @@ const scrapJobsFrom_JobInja = async (technology, province, sortBy) => {
   try {
     const browser = await puppeteer.launch({
       headless: true,
-      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
     });
 
     const page = await browser.newPage();

@@ -6,8 +6,7 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
 const scrapArticlesFromDevToWebsite = async (keywords, sortBy) => {
   const browser = await puppeteer.launch({
-    headless: true,
-    executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    headless: true
   });
 
   const page = await browser.newPage();
@@ -102,7 +101,6 @@ const scrapArticlesFromVirgoolWebsite = async (keywords, limit) => {
   try {
     const browser = await puppeteer.launch({
       headless: true,
-      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
       defaultViewport: null,
     });
 
@@ -249,7 +247,6 @@ const scrapSerachingArticleFromFreeCodeCamp = async (
   try {
     const browser = await puppeteer.launch({
       headless: true,
-      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
       defaultViewport: null,
     });
 
@@ -363,7 +360,6 @@ const scrapArticlesFromBacancyWebsite = async (keywords, articlePath) => {
   try {
     const browser = await puppeteer.launch({
       headless: true,
-      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
       defaultViewport: null,
     });
 

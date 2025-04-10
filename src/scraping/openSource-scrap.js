@@ -8,7 +8,6 @@ puppeteer.use(StealthPlugin());
 const scrapOpenSourceFromGitHub = async (lang) => {
   const browser = await puppeteer.launch({
     headless: true,
-    executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
   });
 
   const page = await browser.newPage();
